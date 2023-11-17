@@ -8,4 +8,4 @@ pandas
 torchxrayvision
 monai
 scikit-image
-sklearn
+scikit-learn
