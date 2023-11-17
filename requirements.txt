@@ -9,3 +9,4 @@ torchxrayvision
 monai
 scikit-image
 scikit-learn
+pyfiglet
