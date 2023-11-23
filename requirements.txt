@@ -10,3 +10,4 @@ monai
 scikit-image
 scikit-learn
 pyfiglet
+ipykernel
