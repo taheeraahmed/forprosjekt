@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=4G
-#SBATCH --job-name="torchxrayvision"
-#SBATCH --output=idun/torchxrayvision.out
+#SBATCH --job-name="notebook"
+#SBATCH --output=idun/notebook.out
 #SBATCH --gres=gpu:1
 
 echo "We are running from this directory: $SLURM_SUBMIT_DIR"
