@@ -1,3 +1,5 @@
 .venv/
 idun/
 .ipynb_checkpoints/
+runs/
+__pycache__/
