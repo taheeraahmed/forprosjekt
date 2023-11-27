@@ -1,12 +1,13 @@
 #!/bin/bash
 DATE=$(date +%Y%m%d-%H%M%S)
 USER=$(whoami)
-TYPE="monai-test"
-echo "Current user is: $USER"
+TYPE="tensorflow-binary-classification-test"
+echo "Current USER is: $USER"
 
 ID=${DATE}-${TYPE}
-
+echo "Current ID is: $ID"
 OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/idun/$ID.out"
+echo "Current OUTPUT_FILE is: $ID"
 
 sbatch --partition=GPUQ \
   --account=ie-idi \
