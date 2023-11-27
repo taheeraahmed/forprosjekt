@@ -49,44 +49,73 @@ def train():
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     logger.info('Started training')
-    for epoch in range(num_epochs):
-        #Training phase
-        model.train()  # Set the model to training mode
-        train_loss = 0.0
-        train_progress_bar = tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}")
-        for inputs, labels in train_progress_bar:
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            outputs = outputs.squeeze(1)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
 
-            # Update the progress bar with the loss information
-            train_progress_bar.set_postfix(loss=loss.item())
-            train_loss += loss.item()
-        
-        train_loss /= len(train_loader)
-        train_losses.append(train_loss)
+    with mlflow.start_run():
+        # Log parameters (example)
+        mlflow.log_param("learning_rate", lr)
+        mlflow.log_param("batch_size", batch_size)
+        mlflow.log_param("num_epochs", num_epochs)
 
-        # Validation phase
-        model.eval()  # Set the model to evaluation mode
-        val_loss = 0.0
-
-        with torch.no_grad():  # No need to track gradients during validation
-            val_progress_bar = tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}")
-            for inputs, labels in val_progress_bar:
+        for epoch in range(num_epochs):
+            #Training phase
+            model.train()  # Set the model to training mode
+            train_loss = 0.0
+            train_progress_bar = tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}")
+            for inputs, labels in train_progress_bar:
+                optimizer.zero_grad()
                 outputs = model(inputs)
                 outputs = outputs.squeeze(1)
                 loss = criterion(outputs, labels)
-                val_progress_bar.set_postfix(loss=loss.item())
+                loss.backward()
+                optimizer.step()
 
-                val_loss += loss.item()
-        
-        val_loss /= len(val_loader)
-        val_losses.append(val_loss)
+                # Update the progress bar with the loss information
+                train_progress_bar.set_postfix(loss=loss.item())
+                train_loss += loss.item()
+                mlflow.log_metric("train_loss", train_loss, step=epoch)
+
+                preds = outputs.round().cpu().numpy()
+                train_preds.extend(preds)
+                train_labels.extend(labels.cpu().numpy())
+            
+            train_loss /= len(train_loader)
+            mlflow.log_metric("train_loss", train_loss, step=epoch)
 
 
+            # Calculate and log training metrics
+            train_accuracy = accuracy_score(train_labels, train_preds)
+            train_precision = precision_score(train_labels, train_preds)
+            train_recall = recall_score(train_labels, train_preds)
+            train_f1 = f1_score(train_labels, train_preds)
+
+            mlflow.log_metric("train_accuracy", train_accuracy, step=epoch)
+            mlflow.log_metric("train_precision", train_precision, step=epoch)
+            mlflow.log_metric("train_recall", train_recall, step=epoch)
+            mlflow.log_metric("train_f1", train_f1, step=epoch)
+
+            # Validation phase
+            model.eval()  # Set the model to evaluation mode
+            val_loss = 0.0
+
+            with torch.no_grad():  # No need to track gradients during validation
+                val_progress_bar = tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}")
+                for inputs, labels in val_progress_bar:
+                    outputs = model(inputs)
+                    outputs = outputs.squeeze(1)
+                    loss = criterion(outputs, labels)
+                    val_progress_bar.set_postfix(loss=loss.item())
+
+                    val_loss += loss.item()
+            
+            val_loss /= len(val_loader)
+            mlflow.log_metric("val_loss", val_loss, step=epoch)
+
+            mlflow.log_metric("val_accuracy", val_accuracy, step=epoch)
+            mlflow.log_metric("val_precision", val_precision, step=epoch)
+            mlflow.log_metric("val_recall", val_recall, step=epoch)
+            mlflow.log_metric("val_f1", val_f1, step=epoch)
+    
+    mlflow.end_run()
 
 if __name__ == "__main__":
     train()
