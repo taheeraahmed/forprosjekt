@@ -10,7 +10,7 @@ def set_up():
     result = pyfiglet.figlet_format("Thoracic disease detection", font = "slant")  
     print(result) 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    
+
     LOG_DIR = "/cluster/home/taheeraa/code/forprosjekt/runs"
     create_directory_if_not_exists(LOG_DIR)
     now = datetime.now()
@@ -26,6 +26,6 @@ def set_up():
     logger = logging.getLogger()
 
     logger.info(f'Root directory of project: {project_root}')
-    check_gpU(logger)
+    check_gpu(logger)
     logger.info('Set-up completed')
     return logger
