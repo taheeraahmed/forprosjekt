@@ -24,15 +24,15 @@ def train():
     logger = set_up()
     resize_size = (256, 256)
     test_size = 0.2
-    batch_size = 32
+    batch_size = 3
     num_epochs= 1
-    lr = 0.001
-
+    
+    logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}')
     data_path = '/cluster/home/taheeraa/datasets/chestxray-14'
     
     df = get_binary_classification_df(logger, data_path)
     transform = transforms.Compose([
-            transforms.Resize((224, 224)),  # Resize to 224x224
+            transforms.Resize(resize_size),  # Resize to 224x224
             transforms.Grayscale(num_output_channels=3),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalizing for pre-trained models
