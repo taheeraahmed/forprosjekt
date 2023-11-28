@@ -6,16 +6,15 @@ from utils.create_dir import create_directory_if_not_exists
 from utils.check_gpu import check_gpu
 import torch
 
-def set_up():
+def set_up(output_folder):
     result = pyfiglet.figlet_format("Thoracic disease detection", font = "slant")  
     print(result) 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    LOG_DIR = "/cluster/home/taheeraa/code/forprosjekt/runs"
+    LOG_DIR = output_folder
     create_directory_if_not_exists(LOG_DIR)
-    now = datetime.now()
-    dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")
-    LOG_FILE = f"{LOG_DIR}/{dt_string}.txt"
+    
+    LOG_FILE = f"{LOG_DIR}/log_file.txt"
 
     logging.basicConfig(level=logging.INFO, 
                 format='[%(levelname)s] %(asctime)s - %(message)s',

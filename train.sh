@@ -11,10 +11,11 @@ if [ "$TEST_MODE" = true ]; then
 fi
 
 # 
-ID=${DATE}-${JOB_NAME}
-echo "Current ID is: $ID"
-OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/idun/$ID.out"
-echo "Current OUTPUT_FILE is: $ID"
+OUTPUT_FOLDER=${DATE}-${JOB_NAME}
+mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER
+echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
+OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/idun_out.out"
+echo "Current OUTPUT_FOLDER is: $OUTPUT_FOLDER"
 
 # Define the destination path for the code
 CODE_PATH="/cluster/home/$USER/runs/code/${ID}"
@@ -48,5 +49,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$ID \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER \
   $CODE_PATH/train.slurm

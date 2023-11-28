@@ -28,14 +28,16 @@ TODO:
 def train(args):
     start_time = time.time()
     test = args.test
+    output_folder = 'output/'+args.output_folder
 
-    logger = set_up()
+    logger = set_up(output_folder=output_folder)
+    logger.info(f'Output folder: {output_folder}')
     test_size = 0.2
     resize_size = (256, 256)
 
     if test:
         logger.warning(f'In test mode')
-        num_epochs = 20
+        num_epochs = 2
         batch_size = 3
     else:  
         num_epochs= 100
@@ -116,7 +118,6 @@ def train(args):
     elapsed_time = end_time - start_time
     logger.info(f"Elapsed time: {elapsed_time} seconds")
 
-    images_path = 'images/' 
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses, label='Training Loss')
     plt.plot(val_losses, label='Validation Loss')
@@ -124,11 +125,12 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig(f'{images_path}train_val_loss.png')
-    logger.info(f'Saved images to: {images_path}train_val_loss.png')
+    plt.savefig(f'{output_folder}/train_val_loss.png')
+    logger.info(f'Saved images to: {output_folder}/train_val_loss.png')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-t", "--test", help="Test mode?", default=False, required=True)
+    parser.add_argument("-of", "--output_folder", help="Name of folder output files will be added", required=True)
     args = parser.parse_args()
     train(args)
