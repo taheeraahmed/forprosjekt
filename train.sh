@@ -36,9 +36,9 @@ rsync -av \
   --exclude='mlruns/' \
   /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
 
-echo "Current USER is: $USER"
+echo "Current user is: $USER"
 echo "Current path is: $CURRENT_PATH"
-echo "Current mode is: $JOB_NAME"
+echo "Current job name is: $JOB_NAME"
 echo "Running slurm job from $CODE_PATH"
 sbatch --partition=GPUQ \
   --account=ie-idi \
