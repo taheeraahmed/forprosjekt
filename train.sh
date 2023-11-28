@@ -1,8 +1,8 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="pytorch-binary-classification"
-TIME=25:00:00
+JOB_NAME="pytorch-binary-classification-one-fourth-of-data"
+TIME=30:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=false
 
@@ -32,6 +32,7 @@ rsync -av \
   --exclude='runs' \
   --exclude='notebooks' \
   --exclude='scripts' \
+  --exclude='output' \
   --exclude='.git' \
   --exclude='__pycache' \
   --exclude='utils/__pycache' \
@@ -51,5 +52,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$ID \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,TIME=$TIME \
   $CODE_PATH/train.slurm
