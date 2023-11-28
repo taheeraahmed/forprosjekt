@@ -12,7 +12,6 @@ if [ "$TEST_MODE" = true ]; then
     TIME=00:15:00
 fi
 
-# 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
 mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER
 echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
@@ -38,6 +37,8 @@ rsync -av \
   --exclude='utils/__pycache' \
   --exclude='mlruns/' \
   /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
+
+CURRENT_PATH=$(pwd)
 
 echo "Current user is: $USER"
 echo "Current path is: $CURRENT_PATH"
