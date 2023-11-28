@@ -4,6 +4,7 @@ from datasets import ChestXrayDataset, get_binary_classification_df
 from models import DenseNetBinaryClassifier
 from torchvision import transforms
 from tqdm import tqdm
+import mlflow
 
 import torch
 import torch.nn as nn
