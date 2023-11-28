@@ -10,6 +10,7 @@ import argparse
 import matplotlib.pyplot as plt
 import time
 import numpy as np
+import csv
 
 import torch
 import torch.nn as nn
@@ -43,7 +44,7 @@ def train(args):
 
     if test:
         logger.warning(f'In test mode')
-        num_epochs = 2
+        num_epochs = 4
         batch_size = 3
     else:  
         num_epochs= 15
@@ -95,86 +96,105 @@ def train(args):
     val_f1, val_precision, val_recall, val_accuracy = [], [], [], []
 
     best_val_accuracy = 0.0  # Initialize the best validation accuracy
+    header = ['epoch','accuracy', 'f1', 'recall', 'precision']
+    with open(f'{output_folder}/train_metrics.csv', mode='w', newline='') as train_file, \
+        open(f'{output_folder}/val_metrics.csv', mode='w', newline='') as val_file:
 
-    for epoch in range(num_epochs):
-        epoch_start_time = time.time() 
-        # Training phase
-        model.train()
-        train_loss, train_preds, train_targets = 0.0, [], []
-        for inputs, labels in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            outputs = outputs.squeeze(1)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        # Create CSV writers
+        train_writer = csv.writer(train_file)
+        val_writer = csv.writer(val_file)
 
-            train_loss += loss.item()
-            train_preds.extend(outputs.detach().cpu().numpy())
-            train_targets.extend(labels.detach().cpu().numpy())
+        # Write the header
+        train_writer.writerow(header)
+        val_writer.writerow(header)
 
-        train_loss /= len(train_loader)
-        train_losses.append(train_loss)
-
-        # Convert predictions to binary (if necessary)
-        train_preds = np.array(train_preds)
-        train_preds_binary = np.round(train_preds)  # Adjust this based on your use case
-
-        # Calculate metrics
-        train_f1.append(f1_score(train_targets, train_preds_binary, average='weighted'))
-        train_precision.append(precision_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
-        train_recall.append(recall_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
-        train_accuracy.append(accuracy_score(train_targets, train_preds_binary))
-
-        # Update learning rate
-        scheduler.step()
-
-        # Validation phase
-        model.eval()
-        val_loss, val_preds, val_targets = 0.0, [], []
-        with torch.no_grad():
-            for inputs, labels in tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}"):
+        for epoch in range(num_epochs):
+            epoch_start_time = time.time() 
+            # Training phase
+            model.train()
+            train_loss, train_preds, train_targets = 0.0, [], []
+            for inputs, labels in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
+                optimizer.zero_grad()
                 outputs = model(inputs)
                 outputs = outputs.squeeze(1)
                 loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
 
-                val_loss += loss.item()
-                val_preds.extend(outputs.detach().cpu().numpy())
-                val_targets.extend(labels.detach().cpu().numpy())
+                train_loss += loss.item()
+                train_preds.extend(outputs.detach().cpu().numpy())
+                train_targets.extend(labels.detach().cpu().numpy())
 
-        val_loss /= len(val_loader)
-        val_losses.append(val_loss)
+            train_loss /= len(train_loader)
+            train_losses.append(train_loss)
 
-        # Convert predictions to binary (if necessary)
-        val_preds = np.array(val_preds)
-        val_preds_binary = np.round(val_preds)  # Adjust this based on your use case
+            # Convert predictions to binary (if necessary)
+            train_preds = np.array(train_preds)
+            train_preds_binary = np.round(train_preds)  # Adjust this based on your use case
 
-        # Calculate metrics
-        val_f1.append(f1_score(val_targets, val_preds_binary, average='weighted'))
-        val_precision.append(precision_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
-        val_recall.append(recall_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
-        val_accuracy.append(accuracy_score(val_targets, val_preds_binary))
+            # Calculate metrics
+            train_f1.append(f1_score(train_targets, train_preds_binary, average='weighted'))
+            train_precision.append(precision_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
+            train_recall.append(recall_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
+            train_accuracy.append(accuracy_score(train_targets, train_preds_binary))
 
-        # Check if the current validation accuracy is the best
-        current_val_accuracy = val_accuracy[-1]  # Get the latest validation accuracy
-        if current_val_accuracy > best_val_accuracy:
-            best_val_accuracy = current_val_accuracy
-            checkpoint = {
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'best_val_accuracy': best_val_accuracy
-            }
-            torch.save(checkpoint, f'{model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
-            logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
+            # Update learning rate
+            scheduler.step()
 
-        epoch_end_time = time.time()  # End time of the current epoch
-        epoch_duration = epoch_end_time - epoch_start_time
-        remaining_epochs = num_epochs - (epoch + 1)
-        estimated_remaining_time = epoch_duration * remaining_epochs
+            # Validation phase
+            model.eval()
+            val_loss, val_preds, val_targets = 0.0, [], []
+            with torch.no_grad():
+                for inputs, labels in tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}"):
+                    outputs = model(inputs)
+                    outputs = outputs.squeeze(1)
+                    loss = criterion(outputs, labels)
 
-        logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
-        logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
+                    val_loss += loss.item()
+                    val_preds.extend(outputs.detach().cpu().numpy())
+                    val_targets.extend(labels.detach().cpu().numpy())
+
+            val_loss /= len(val_loader)
+            val_losses.append(val_loss)
+
+            # Convert predictions to binary (if necessary)
+            val_preds = np.array(val_preds)
+            val_preds_binary = np.round(val_preds)  # Adjust this based on your use case
+
+            # Calculate metrics
+            val_f1.append(f1_score(val_targets, val_preds_binary, average='weighted'))
+            val_precision.append(precision_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
+            val_recall.append(recall_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
+            val_accuracy.append(accuracy_score(val_targets, val_preds_binary))
+
+            # Check if the current validation accuracy is the best
+            current_val_accuracy = val_accuracy[-1]  # Get the latest validation accuracy
+            if current_val_accuracy > best_val_accuracy:
+                best_val_accuracy = current_val_accuracy
+                checkpoint = {
+                    'epoch': epoch + 1,
+                    'state_dict': model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'best_val_accuracy': best_val_accuracy
+                }
+                torch.save(checkpoint, f'{model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
+                logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
+
+            train_metrics = [epoch + 1, train_accuracy[-1], train_f1[-1], train_recall[-1], train_precision[-1], train_losses[-1]]
+            val_metrics = [epoch + 1, val_accuracy[-1], val_f1[-1], val_recall[-1], val_precision[-1], val_losses[-1]]
+            train_writer.writerow(train_metrics)
+            val_writer.writerow(val_metrics)
+
+            train_file.flush()
+            val_file.flush()
+
+            epoch_end_time = time.time()  # End time of the current epoch
+            epoch_duration = epoch_end_time - epoch_start_time
+            remaining_epochs = num_epochs - (epoch + 1)
+            estimated_remaining_time = epoch_duration * remaining_epochs
+
+            logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
+            logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -231,6 +251,8 @@ def train(args):
     plt.legend()
     plt.savefig(f'{output_folder}/plot_recall.png')
     logger.info(f'Saved images to: {output_folder}/plot_recall.png')
+
+    logger.info('Done training')
 
 def str_to_bool(value):
     if value.lower() == 'true':
