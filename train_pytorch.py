@@ -1,4 +1,5 @@
 from utils.set_up import set_up
+from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
 from datasets import ChestXrayDataset, get_binary_classification_df
 from utils.create_dir import create_directory_if_not_exists
@@ -20,14 +21,10 @@ from torchvision import models
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-"""
-TODO: 
-[x] Add test mode
-[X] Add plots of train and val loss 
-[X] f1 scores, accuracy, recall, precision
-[X] Add plots of all
-
-"""
+def denormalize(tensor, mean, std):
+    for t, m, s in zip(tensor, mean, std):
+        t.mul_(s).add_(m)  # Multiply by std and then add the mean
+    return tensor
 
 def train(args):
     start_time = time.time()
@@ -44,7 +41,7 @@ def train(args):
 
     if test:
         logger.warning(f'In test mode')
-        num_epochs = 4
+        num_epochs = 2
         batch_size = 3
     else:  
         num_epochs= 15
@@ -192,9 +189,14 @@ def train(args):
             epoch_duration = epoch_end_time - epoch_start_time
             remaining_epochs = num_epochs - (epoch + 1)
             estimated_remaining_time = epoch_duration * remaining_epochs
+            # Calculate the estimated completion time
+            estimated_completion_time = datetime.now() + timedelta(seconds=estimated_remaining_time)
+
 
             logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
             logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
+            logger.info(f"Estimated completion time: {estimated_completion_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -252,6 +254,40 @@ def train(args):
     plt.savefig(f'{output_folder}/plot_recall.png')
     logger.info(f'Saved images to: {output_folder}/plot_recall.png')
 
+    # Get a batch of training data
+    inputs, labels = next(iter(val_loader))
+
+    # Make predictions
+    outputs = model(inputs)
+    preds = torch.sigmoid(outputs) > 0.5  # Assuming binary classification with sigmoid activation
+
+    # Plot the images and labels
+    num_images = len(inputs)
+    cols = int(np.sqrt(num_images))
+    rows = cols if cols**2 == num_images else cols + 1
+
+    fig, axes = plt.subplots(rows, cols, figsize=(15, 15))
+    fig.subplots_adjust(hspace=0.3, wspace=0.3)  # Adjust the space between images
+
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    for i, ax in enumerate(axes.flatten()):
+        if i < num_images:
+            input = inputs[i]
+            denormalized_input = denormalize(input.clone(), mean, std)
+            img = denormalized_input.numpy().transpose((1, 2, 0))
+            plt.imshow(img, cmap='gray')
+            actual_label = 'Positive' if labels[i].item() == 1 else 'Negative'
+            predicted_label = 'Positive' if preds[i].item() == 1 else 'Negative'
+            ax.set_title(f'Actual: {actual_label}\nPredicted: {predicted_label}', fontsize=10, backgroundcolor='white')
+            ax.axis('off')  # Hide the axis
+        else:
+            ax.axis('off')  # Hide axis if no image
+
+    plt.tight_layout()
+    plt.savefig(f'{output_folder}/img_chest_pred.png')
+    logger.info(f'Saved images to: {output_folder}/img_chest_pred.png')
     logger.info('Done training')
 
 def str_to_bool(value):
