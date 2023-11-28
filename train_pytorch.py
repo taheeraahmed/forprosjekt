@@ -1,6 +1,7 @@
 from utils.set_up import set_up
 from torch.utils.data import DataLoader
 from datasets import ChestXrayDataset, get_binary_classification_df
+from utils.create_dir import create_directory_if_not_exists
 from models import DenseNetBinaryClassifier
 from torchvision import transforms
 from tqdm import tqdm
@@ -31,6 +32,8 @@ def train(args):
     start_time = time.time()
     test = args.test
     output_folder = 'output/'+args.output_folder
+    create_directory_if_not_exists(output_folder+'/models')
+    model_output_folder = output_folder+'/models'
 
     logger = set_up(output_folder=output_folder)
     logger.info(f'Output folder: {output_folder}')
@@ -43,7 +46,7 @@ def train(args):
         num_epochs = 2
         batch_size = 3
     else:  
-        num_epochs= 30
+        num_epochs= 15
         batch_size = 32
 
     logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
@@ -63,6 +66,9 @@ def train(args):
         val_df_size = math.floor(test_size*test_df_size)
         train_df = train_df.iloc[:test_df_size, :]
         val_df = val_df.iloc[:val_df_size, :]
+    else: 
+        train_df = train_df.sample(frac=0.25)
+        val_df = val_df.sample(frac=0.25)
 
     logger.info(f"Train df shape: {train_df.shape}")
     logger.info(f"Validation df shape: {val_df.shape}")
@@ -82,6 +88,8 @@ def train(args):
     train_losses, val_losses = [], []
     train_f1, train_precision, train_recall, train_accuracy = [], [], [], []
     val_f1, val_precision, val_recall, val_accuracy = [], [], [], []
+
+    best_val_accuracy = 0.0  # Initialize the best validation accuracy
 
     for epoch in range(num_epochs):
         # Training phase
@@ -137,6 +145,19 @@ def train(args):
         val_precision.append(precision_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
         val_recall.append(recall_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
         val_accuracy.append(accuracy_score(val_targets, val_preds_binary))
+
+        # Check if the current validation accuracy is the best
+        current_val_accuracy = val_accuracy[-1]  # Get the latest validation accuracy
+        if current_val_accuracy > best_val_accuracy:
+            best_val_accuracy = current_val_accuracy
+            checkpoint = {
+                'epoch': epoch + 1,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'best_val_accuracy': best_val_accuracy
+            }
+            torch.save(checkpoint, f'{model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
+            logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
 
     end_time = time.time()
     elapsed_time = end_time - start_time
