@@ -2,12 +2,14 @@
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
 JOB_NAME="pytorch-binary-classification"
+TIME=25:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=false
 
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
+    TIME=00:15:00
 fi
 
 # 
@@ -42,7 +44,7 @@ echo "Current job name is: $JOB_NAME"
 echo "Running slurm job from $CODE_PATH"
 sbatch --partition=GPUQ \
   --account=ie-idi \
-  --time=0:15:00 \
+  --time=$TIME \
   --nodes=1 \
   --ntasks-per-node=1 \
   --mem=50G \
