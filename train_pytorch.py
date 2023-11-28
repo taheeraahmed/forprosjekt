@@ -82,7 +82,12 @@ def train(args):
     model = DenseNetBinaryClassifier(logger=logger)
     model.log_params()
     criterion = nn.BCEWithLogitsLoss()
+
+    # Define the optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # Define the scheduler
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     logger.info('Started training')
     train_losses, val_losses = [], []
@@ -119,6 +124,9 @@ def train(args):
         train_precision.append(precision_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
         train_recall.append(recall_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
         train_accuracy.append(accuracy_score(train_targets, train_preds_binary))
+
+        # Update learning rate
+        scheduler.step()
 
         # Validation phase
         model.eval()
