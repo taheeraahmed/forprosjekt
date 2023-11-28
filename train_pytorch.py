@@ -71,7 +71,8 @@ def train(args):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
-    model = DenseNetBinaryClassifier()
+    model = DenseNetBinaryClassifier(logger=logger)
+    model.log_params()
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
