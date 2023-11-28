@@ -36,16 +36,17 @@ def train(args):
     logger.info(f'Output folder: {output_folder}')
     test_size = 0.2
     resize_size = (256, 256)
+    lr = 0.001
 
     if test:
         logger.warning(f'In test mode')
         num_epochs = 2
         batch_size = 3
     else:  
-        num_epochs= 100
+        num_epochs= 30
         batch_size = 32
 
-    logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}')
+    logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
     data_path = '/cluster/home/taheeraa/datasets/chestxray-14'
     
     df = get_binary_classification_df(logger, data_path)
@@ -62,8 +63,9 @@ def train(args):
         val_df_size = math.floor(test_size*test_df_size)
         train_df = train_df.iloc[:test_df_size, :]
         val_df = val_df.iloc[:val_df_size, :]
-        logger.info(f"Train df shape: {train_df.shape}")
-        logger.info(f"Validation df shape: {val_df.shape}")
+
+    logger.info(f"Train df shape: {train_df.shape}")
+    logger.info(f"Validation df shape: {val_df.shape}")
 
     train_dataset = ChestXrayDataset(df=train_df, transform=transform)
     val_dataset = ChestXrayDataset(df=val_df, transform=transform)
@@ -74,7 +76,7 @@ def train(args):
     model = DenseNetBinaryClassifier(logger=logger)
     model.log_params()
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     logger.info('Started training')
     train_losses, val_losses = [], []
