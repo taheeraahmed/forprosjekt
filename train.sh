@@ -26,6 +26,7 @@ rsync -av \
   --exclude='scripts' \
   --exclude='.git' \
   --exclude='__pycache' \
+  --exclude='utils/__pycache' \
   /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
 
 echo "Running slurm job from $CODE_PATH"
