@@ -2,7 +2,9 @@
 DATE=$(date +%Y%m%d-%H%M%S)
 USER=$(whoami)
 TYPE="tensorflow-binary-classification-longer-test"
+CURRENT_PATH=$(pwd)
 echo "Current USER is: $USER"
+echo "Current path is: $CURRENT_PATH"
 
 ID=${DATE}-${TYPE}
 echo "Current ID is: $ID"
@@ -20,10 +22,11 @@ rsync -av \
   --exclude='idun' \
   --exclude='images' \
   --exclude='runs' \
+  --exclude='notebooks' \
   --exclude='scripts' \
   --exclude='.git' \
   --exclude='__pycache' \
-  /cluster/home/$USER/code/tdt17-visuell-intelligens/ $CODE_PATH
+  /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
 
 echo "Running slurm job from $CODE_PATH"
 sbatch --partition=GPUQ \
