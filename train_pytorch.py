@@ -4,6 +4,7 @@ from datasets import ChestXrayDataset, get_binary_classification_df
 from models import DenseNetBinaryClassifier
 from torchvision import transforms
 from tqdm import tqdm
+import math
 
 import torch
 import torch.nn as nn
@@ -13,18 +14,19 @@ from torchvision import models
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-def calculate_accuracy(outputs, labels):
-    # Convert outputs to predicted labels (0 or 1)
-    predicted = outputs.round()
-    correct = (predicted == labels).float()  # convert to float for division
-    accuracy = correct.sum() / len(correct)
-    return accuracy
+"""
+TODO: 
+[x] Add test mode
+[ ] Add plots of train and val accuracy
+[ ] Add plots of train and val loss 
+[ ] Log f1 scores
+"""
 
 def train(test = True):
     logger = set_up()
-    logger.info(f'Test:{test}')
     test_size = 0.2
     if test:
+        logger.warning(f'In test mode')
         resize_size = (256, 256)
         num_epochs = 1
         batch_size = 3
@@ -46,8 +48,12 @@ def train(test = True):
     train_df, val_df = train_test_split(df, test_size=test_size)  # Adjust the test_size as needed
     
     if test:
-        train_df = train_df[:100]
-        val_df = val_df[:100*test_size]
+        test_df_size = 100
+        val_df_size = math.floor(test_size*test_df_size)
+        train_df = train_df.iloc[:test_df_size, :]
+        val_df = val_df.iloc[:val_df_size, :]
+        logger.info(f"Train df shape: {train_df.shape}")
+        logger.info(f"Validation df shape: {val_df.shape}")
 
     train_dataset = ChestXrayDataset(df=train_df, transform=transform)
     val_dataset = ChestXrayDataset(df=val_df, transform=transform)
