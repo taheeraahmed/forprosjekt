@@ -7,7 +7,7 @@ class DenseNetBinaryClassifier(nn.Module):
     def __init__(self):
         super(DenseNetBinaryClassifier, self).__init__()
         # Load a pre-trained densenet
-        self.densenet = models.densenet121(pretrained=True)
+        self.densenet = models.densenet121(weights=True)
         
         # Replace classifier
         num_ftrs = self.densenet.classifier.in_features
