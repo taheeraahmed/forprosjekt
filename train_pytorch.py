@@ -177,14 +177,18 @@ def train(args):
                 torch.save(checkpoint, f'{model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
                 logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
 
+            # Writing to csv
             train_metrics = [epoch + 1, train_accuracy[-1], train_f1[-1], train_recall[-1], train_precision[-1], train_losses[-1]]
             val_metrics = [epoch + 1, val_accuracy[-1], val_f1[-1], val_recall[-1], val_precision[-1], val_losses[-1]]
             train_writer.writerow(train_metrics)
             val_writer.writerow(val_metrics)
-
             train_file.flush()
             val_file.flush()
 
+            logger.info(f'Epoch {epoch + 1}: , {val_accuracy[-1]}, {val_f1[-1]}, {val_recall[-1]}, {val_precision[-1]}, {val_losses[-1]}')
+            logger.info(f'Epoch {epoch + 1}: , {train_accuracy[-1]}, {train_f1[-1]}, {train_recall[-1]}, {train_precision[-1]}, {train_losses[-1]}')
+
+            # Elapsed time
             epoch_end_time = time.time()  # End time of the current epoch
             epoch_duration = epoch_end_time - epoch_start_time
             remaining_epochs = num_epochs - (epoch + 1)
