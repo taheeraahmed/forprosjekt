@@ -147,8 +147,8 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig(f'{output_folder}/train_val_loss.png')
-    logger.info(f'Saved images to: {output_folder}/train_val_loss.png')
+    plt.savefig(f'{output_folder}/plot_train_val_loss.png')
+    logger.info(f'Saved images to: {output_folder}/plot_train_val_loss.png')
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_f1, label='Training F1')
@@ -157,8 +157,8 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('F1')
     plt.legend()
-    plt.savefig(f'{output_folder}/F1.png')
-    logger.info(f'Saved images to: {output_folder}/F1.png')
+    plt.savefig(f'{output_folder}/plot_F1.png')
+    logger.info(f'Saved images to: {output_folder}/plot_F1.png')
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_accuracy, label='Training accuracy')
@@ -167,8 +167,8 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy')
     plt.legend()
-    plt.savefig(f'{output_folder}/accuracy.png')
-    logger.info(f'Saved images to: {output_folder}/accuracy.png')
+    plt.savefig(f'{output_folder}/plot_accuracy.png')
+    logger.info(f'Saved images to: {output_folder}/plot_accuracy.png')
 
 
     plt.figure(figsize=(10, 5))
@@ -178,8 +178,8 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('Precision')
     plt.legend()
-    plt.savefig(f'{output_folder}/precision.png')
-    logger.info(f'Saved images to: {output_folder}/precision.png')
+    plt.savefig(f'{output_folder}/plot_precision.png')
+    logger.info(f'Saved images to: {output_folder}/plot_precision.png')
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_recall, label='Training recall')
@@ -188,8 +188,8 @@ def train(args):
     plt.xlabel('Epochs')
     plt.ylabel('Recall')
     plt.legend()
-    plt.savefig(f'{output_folder}/recall.png')
-    logger.info(f'Saved images to: {output_folder}/recall.png')
+    plt.savefig(f'{output_folder}/plot_recall.png')
+    logger.info(f'Saved images to: {output_folder}/plot_recall.png')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
