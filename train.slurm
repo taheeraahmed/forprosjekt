@@ -14,6 +14,6 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python train_tensorflow.py
+python train_pytorch.py
 
 echo " --- Done running train.py ---"
