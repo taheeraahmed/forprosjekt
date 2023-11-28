@@ -8,6 +8,7 @@ import math
 import argparse
 import matplotlib.pyplot as plt
 import time
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -20,9 +21,10 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 """
 TODO: 
 [x] Add test mode
-[ ] Add plots of train and val accuracy
 [X] Add plots of train and val loss 
-[ ] Log f1 scores
+[X] f1 scores, accuracy, recall, precision
+[X] Add plots of all
+
 """
 
 def train(args):
@@ -74,15 +76,15 @@ def train(args):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     logger.info('Started training')
-    train_losses = []
-    val_losses = []
+    train_losses, val_losses = [], []
+    train_f1, train_precision, train_recall, train_accuracy = [], [], [], []
+    val_f1, val_precision, val_recall, val_accuracy = [], [], [], []
 
     for epoch in range(num_epochs):
-        #Training phase
-        model.train()  # Set the model to training mode
-        train_loss = 0.0
-        train_progress_bar = tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}")
-        for inputs, labels in train_progress_bar:
+        # Training phase
+        model.train()
+        train_loss, train_preds, train_targets = 0.0, [], []
+        for inputs, labels in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
             optimizer.zero_grad()
             outputs = model(inputs)
             outputs = outputs.squeeze(1)
@@ -90,33 +92,53 @@ def train(args):
             loss.backward()
             optimizer.step()
 
-            # Update the progress bar with the loss information
-            train_progress_bar.set_postfix(train_loss=loss.item())
             train_loss += loss.item()
+            train_preds.extend(outputs.detach().cpu().numpy())
+            train_targets.extend(labels.detach().cpu().numpy())
 
         train_loss /= len(train_loader)
         train_losses.append(train_loss)
 
-        # Validation phase
-        model.eval()  # Set the model to evaluation mode
-        val_loss = 0.0
+        # Convert predictions to binary (if necessary)
+        train_preds = np.array(train_preds)
+        train_preds_binary = np.round(train_preds)  # Adjust this based on your use case
 
-        with torch.no_grad():  # No need to track gradients during validation
-            val_progress_bar = tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}")
-            for inputs, labels in val_progress_bar:
+        # Calculate metrics
+        train_f1.append(f1_score(train_targets, train_preds_binary, average='weighted'))
+        train_precision.append(precision_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
+        train_recall.append(recall_score(train_targets, train_preds_binary, average='weighted', zero_division=1))
+        train_accuracy.append(accuracy_score(train_targets, train_preds_binary))
+
+        # Validation phase
+        model.eval()
+        val_loss, val_preds, val_targets = 0.0, [], []
+        with torch.no_grad():
+            for inputs, labels in tqdm(val_loader, desc=f"Validation Epoch {epoch + 1}/{num_epochs}"):
                 outputs = model(inputs)
                 outputs = outputs.squeeze(1)
                 loss = criterion(outputs, labels)
-                val_progress_bar.set_postfix(val_loss=loss.item())
 
                 val_loss += loss.item()
-        
+                val_preds.extend(outputs.detach().cpu().numpy())
+                val_targets.extend(labels.detach().cpu().numpy())
+
         val_loss /= len(val_loader)
         val_losses.append(val_loss)
+
+        # Convert predictions to binary (if necessary)
+        val_preds = np.array(val_preds)
+        val_preds_binary = np.round(val_preds)  # Adjust this based on your use case
+
+        # Calculate metrics
+        val_f1.append(f1_score(val_targets, val_preds_binary, average='weighted'))
+        val_precision.append(precision_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
+        val_recall.append(recall_score(val_targets, val_preds_binary, average='weighted', zero_division=1))
+        val_accuracy.append(accuracy_score(val_targets, val_preds_binary))
 
     end_time = time.time()
     elapsed_time = end_time - start_time
     logger.info(f"Elapsed time: {elapsed_time} seconds")
+
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses, label='Training Loss')
@@ -127,6 +149,47 @@ def train(args):
     plt.legend()
     plt.savefig(f'{output_folder}/train_val_loss.png')
     logger.info(f'Saved images to: {output_folder}/train_val_loss.png')
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_f1, label='Training F1')
+    plt.plot(val_f1, label='Validation F1')
+    plt.title('Training and Validation F1 Per Epoch')
+    plt.xlabel('Epochs')
+    plt.ylabel('F1')
+    plt.legend()
+    plt.savefig(f'{output_folder}/F1.png')
+    logger.info(f'Saved images to: {output_folder}/F1.png')
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_accuracy, label='Training accuracy')
+    plt.plot(val_accuracy, label='Validation accuracy')
+    plt.title('Training and Validation Accuracy Per Epoch')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.savefig(f'{output_folder}/accuracy.png')
+    logger.info(f'Saved images to: {output_folder}/accuracy.png')
+
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_precision, label='Training precision')
+    plt.plot(val_precision, label='Validation precision')
+    plt.title('Training and Validation Precision Per Epoch')
+    plt.xlabel('Epochs')
+    plt.ylabel('Precision')
+    plt.legend()
+    plt.savefig(f'{output_folder}/precision.png')
+    logger.info(f'Saved images to: {output_folder}/precision.png')
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_recall, label='Training recall')
+    plt.plot(val_recall, label='Validation recall')
+    plt.title('Training and Validation Recall Per Epoch')
+    plt.xlabel('Epochs')
+    plt.ylabel('Recall')
+    plt.legend()
+    plt.savefig(f'{output_folder}/recall.png')
+    logger.info(f'Saved images to: {output_folder}/recall.png')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")

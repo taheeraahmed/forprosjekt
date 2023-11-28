@@ -1,13 +1,13 @@
 #!/bin/bash
-DATE=$(date +%Y%m%d-%H%M%S)
+DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="tensorflow-binary-classification-longer"
+JOB_NAME="pytorch-binary-classification"
 CURRENT_PATH=$(pwd)
 TEST_MODE=true
 
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
-    JOB_NAME="${JOB_NAME}-test"
+    JOB_NAME="TEST-${JOB_NAME}"
 fi
 
 # 
