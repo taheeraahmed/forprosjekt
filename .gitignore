@@ -1,7 +1,9 @@
 .venv/
-idun/
 .ipynb_checkpoints/
 runs/
 __pycache__/
 images/
 mlruns/
+output/
+*.out
+*.txt
