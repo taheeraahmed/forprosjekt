@@ -20,13 +20,19 @@ def calculate_accuracy(outputs, labels):
     accuracy = correct.sum() / len(correct)
     return accuracy
 
-def train():
+def train(test = True):
     logger = set_up()
-    resize_size = (256, 256)
+    logger.info(f'Test:{test}')
     test_size = 0.2
-    batch_size = 3
-    num_epochs= 1
-    
+    if test:
+        resize_size = (256, 256)
+        num_epochs = 1
+        batch_size = 3
+    else:  
+        resize_size = (32, 32)
+        num_epochs= 100
+        batch_size = 32
+
     logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}')
     data_path = '/cluster/home/taheeraa/datasets/chestxray-14'
     
@@ -38,6 +44,11 @@ def train():
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalizing for pre-trained models
         ])
     train_df, val_df = train_test_split(df, test_size=test_size)  # Adjust the test_size as needed
+    
+    if test:
+        train_df = train_df[:100]
+        val_df = val_df[:100*test_size]
+
     train_dataset = ChestXrayDataset(df=train_df, transform=transform)
     val_dataset = ChestXrayDataset(df=val_df, transform=transform)
 
