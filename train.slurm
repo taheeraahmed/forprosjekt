@@ -7,6 +7,7 @@ echo "Number of nodes: $SLURM_JOB_NUM_NODES"
 echo "We are using $SLURM_CPUS_ON_NODE cores"
 echo "We are using $SLURM_CPUS_ON_NODE cores per node"
 echo "Total of $SLURM_NTASKS cores"
+echo "Total time at IDUN $TIME"
 
 echo "--- nvidia-smi ---"
 nvidia-smi
