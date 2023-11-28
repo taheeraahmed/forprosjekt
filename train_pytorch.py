@@ -97,6 +97,7 @@ def train(args):
     best_val_accuracy = 0.0  # Initialize the best validation accuracy
 
     for epoch in range(num_epochs):
+        epoch_start_time = time.time() 
         # Training phase
         model.train()
         train_loss, train_preds, train_targets = 0.0, [], []
@@ -166,6 +167,14 @@ def train(args):
             }
             torch.save(checkpoint, f'{model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
             logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
+
+        epoch_end_time = time.time()  # End time of the current epoch
+        epoch_duration = epoch_end_time - epoch_start_time
+        remaining_epochs = num_epochs - (epoch + 1)
+        estimated_remaining_time = epoch_duration * remaining_epochs
+
+        logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
+        logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
 
     end_time = time.time()
     elapsed_time = end_time - start_time
