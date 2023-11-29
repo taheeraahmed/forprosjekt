@@ -323,7 +323,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-t", "--test", help="Test mode?", default=True, required=True)
     parser.add_argument("-of", "--output_folder", help="Name of folder output files will be added", required=True)
-    parser.add_argument("-it", "--idun_time", help="The duration of job set on IDUNU", required=True)
+    parser.add_argument("-it", "--idun_time", help="The duration of job set on IDUN", required=True)
     args = parser.parse_args()
     args.test = str_to_bool(args.test)
     train(args)

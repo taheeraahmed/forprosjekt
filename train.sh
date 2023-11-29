@@ -48,7 +48,7 @@ echo "Running slurm job from $CODE_PATH"
 
 sbatch --partition=GPUQ \
   --account=ie-idi \
-  --time=$TIME \
+  --time=$IDUN_TIME \
   --nodes=1 \
   --ntasks-per-node=1 \
   --mem=50G \
