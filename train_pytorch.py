@@ -28,17 +28,27 @@ def denormalize(tensor, mean, std):
 
 def train(args):
     start_time = time.time()
+
+    # Setting argument variables
     test = args.test
+    idun_time = args.idun_time
     output_folder = 'output/'+args.output_folder
+
+    # Calculate at what time IDUN job is done
+    hours, minutes, seconds = map(int, idun_time.split(":"))
+    now = datetime.fromtimestamp(start_time)
+    idun_datetime_done = now + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+    # Creating directory for output
     create_directory_if_not_exists(output_folder+'/models')
     model_output_folder = output_folder+'/models'
-
     logger = set_up(output_folder=output_folder)
     logger.info(f'Output folder: {output_folder}')
+
+    # Setting params
     test_size = 0.2
     resize_size = (256, 256)
     lr = 0.001
-
     if test:
         logger.warning(f'In test mode')
         num_epochs = 2
@@ -46,7 +56,6 @@ def train(args):
     else:  
         num_epochs= 15
         batch_size = 32
-
     logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
     data_path = '/cluster/home/taheeraa/datasets/chestxray-14'
     
@@ -201,6 +210,14 @@ def train(args):
             logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
             logger.info(f"Estimated completion time: {estimated_completion_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
+            # Compare IDUN time with completion time and log
+            if idun_datetime_done > estimated_completion_time:
+                time_diff = idun_datetime_done - estimated_completion_time
+                logger.info(f"There is enough time allocated for the training to completely finish. Time difference: {time_diff}")
+            else:
+                time_diff = estimated_completion_time - idun_datetime_done
+                logger.warning(f"There might not be enough time allocated on IDUN. Time difference: {time_diff}")
+
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -306,6 +323,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-t", "--test", help="Test mode?", default=True, required=True)
     parser.add_argument("-of", "--output_folder", help="Name of folder output files will be added", required=True)
+    parser.add_argument("-it", "--idun_time", help="The duration of job set on IDUNU", required=True)
     args = parser.parse_args()
     args.test = str_to_bool(args.test)
     train(args)

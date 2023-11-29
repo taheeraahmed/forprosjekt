@@ -7,7 +7,7 @@ echo "Number of nodes: $SLURM_JOB_NUM_NODES"
 echo "We are using $SLURM_CPUS_ON_NODE cores"
 echo "We are using $SLURM_CPUS_ON_NODE cores per node"
 echo "Total of $SLURM_NTASKS cores"
-echo "Total time at IDUN $TIME"
+echo "Total time at IDUN $IDUN_TIME"
 
 echo "--- nvidia-smi ---"
 nvidia-smi
@@ -15,6 +15,6 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python train_pytorch.py -t $TEST_MODE -of $OUTPUT_FOLDER
+python train_pytorch.py -t $TEST_MODE -of $OUTPUT_FOLDER -it $IDUN_TIME
 
 echo " --- Done running train.py ---"

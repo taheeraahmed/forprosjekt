@@ -1,18 +1,19 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="pytorch-binary-classify-one-fourth-of-data-e-20-bs-16"
-TIME=90:00:00
+JOB_NAME="pytorch-binary-classify-one-fourth-of-data"
+IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
-TEST_MODE=false
+TEST_MODE=true
 
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
-    TIME=00:05:00
+    IDUN_TIME=00:15:00
 fi
 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
+
 mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER
 echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
 OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/idun_out.out"
@@ -54,5 +55,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$JOB_NAME \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,TIME=$TIME \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME \
   $CODE_PATH/train.slurm
