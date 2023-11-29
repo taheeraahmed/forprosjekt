@@ -20,7 +20,7 @@ OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/idun_
 echo "Current OUTPUT_FOLDER is: $OUTPUT_FOLDER"
 
 # Define the destination path for the code
-CODE_PATH="/cluster/home/$USER/runs/code/${ID}"
+CODE_PATH="/cluster/home/$USER/runs/code/${JOB_NAME}"
 
 # Copy the code with rsync, excluding .venv
 echo "Copying code to $CODE_PATH"
