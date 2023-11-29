@@ -1,15 +1,15 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="pytorch-binary-classification-one-fourth-of-data"
-TIME=30:00:00
+JOB_NAME="pytorch-binary-classify-one-fourth-of-data-e-20-bs-16"
+TIME=90:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=false
 
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
-    TIME=00:15:00
+    TIME=00:05:00
 fi
 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
@@ -44,6 +44,7 @@ echo "Current user is: $USER"
 echo "Current path is: $CURRENT_PATH"
 echo "Current job name is: $JOB_NAME"
 echo "Running slurm job from $CODE_PATH"
+
 sbatch --partition=GPUQ \
   --account=ie-idi \
   --time=$TIME \
@@ -51,7 +52,7 @@ sbatch --partition=GPUQ \
   --ntasks-per-node=1 \
   --mem=50G \
   --gres=gpu:1 \
-  --job-name=$ID \
+  --job-name=$JOB_NAME \
   --output=$OUTPUT_FILE \
   --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,TIME=$TIME \
   $CODE_PATH/train.slurm
