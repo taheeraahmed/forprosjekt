@@ -1,9 +1,13 @@
 from utils.set_up import set_up, calculate_idun_time_left
-from dataloaders import MultiClassDataLoader, BinaryClassificationDataLoader
+from torch.utils.data import random_split
+from torch.utils.data import DataLoader
+from datasets import ChestXrayDataset, get_binary_classification_df, ModifiedNIH_Dataset
+from utils.create_dir import create_directory_if_not_exists
 from utils.plot_stuff import plot_metrics, plot_pred
 import tqdm
 from models import DenseNetBinaryClassifier
 import torchvision
+from torch.utils.data import Subset
 from tqdm import tqdm
 import math
 import argparse
@@ -37,31 +41,67 @@ TODO:
     Start a real run B)
 """
 def train(args):
+    
     start_time = time.time()
 
-    test_mode = args.test_mode
+    # Setting argument variables
+    test = args.test
+    idun_time = args.idun_time
+    output_folder = 'output/'+args.output_folder
     model_arg = args.model
 
-    setup_info = set_up(args)
-    logger, idun_datetime_done, output_folder, model_output_folder = setup_info
+    # Creating directory for output, creating logger and calculating IDUN job done datetime
+    create_directory_if_not_exists(output_folder+'/models')
+    model_output_folder = output_folder+'/models'
+    logger, idun_datetime_done = set_up(output_folder=output_folder, idun_time=idun_time, start_time=start_time)
     logger.info(f'Output folder: {output_folder}')
 
+    # Setting params
+    test_size = 0.2
     lr = 0.001
     num_epochs= 15
     batch_size = 32
 
     data_path = '/cluster/home/taheeraa/datasets/chestxray-14'
 
-    if test_mode:
+    if test:
         logger.warning(f'In test mode')
         num_epochs = 2
         batch_size = 3
 
-    logger.info(f'batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
+    logger.info(f'test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
 
     if model_arg == 'densenet-pretrained-xray-multi-class':
-        dataloaders = MultiClassDataLoader(data_path, test_mode, batch_size, logger, test_size=0.01, train_size=0.8)
-        train_dataloader, validation_dataloader = dataloaders.get_dataloaders()
+        data_transforms = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),
+        xrv.datasets.XRayResizer(224)])
+        nih_img_dirs = list_directories(data_path)
+        logger.info(f'{nih_img_dirs}')
+        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=data_transforms)
+        if test: 
+            logger.warning('Using 1% of dataset')
+
+            subset_size = int(len(dataset) * 0.01)
+            indices = torch.randperm(len(dataset)).tolist()
+            test_subset_indices = indices[:subset_size]
+            test_subset_dataset = Subset(dataset, test_subset_indices)
+
+            # Split the test subset into test and validation sets
+            test_size = int(0.8 * len(test_subset_dataset))
+            validation_size = len(test_subset_dataset) - test_size
+            test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
+
+            # Create dataloaders for test and validation sets
+            train_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+            validation_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
+        else:
+            # Split the dataset into training and validation sets
+            train_size = int(0.8 * len(dataset))
+            validation_size = len(dataset) - train_size
+            train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])
+
+            # Create dataloaders for training and validation sets
+            train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            validation_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None # prevent pre-trained model calibration
@@ -195,14 +235,37 @@ def train(args):
             logger.info(f'Epoch {epoch+1} - Train loss: {avg_train_loss}, Train accuracy: {avg_train_accuracy}, Val loss: {avg_val_loss}, Val accuracy: {avg_val_accuracy}')
 
         writer.close()
-
     elif model_arg == 'densenet-pretrained-imagenet-binary-class':
-        dataloaders = BinaryClassificationDataLoader(data_path, test_mode, batch_size, logger, test_size=0.2, train_frac=0.25)
-        train_loader, val_loader = dataloaders.get_dataloaders()
+        df = get_binary_classification_df(logger, data_path)
+        train_df, val_df = train_test_split(df, test_size=test_size)  # Adjust the test_size as needed
+
+        if test:
+            test_df_size = 100
+            val_df_size = math.floor(test_size*test_df_size)
+            train_df = train_df.iloc[:test_df_size, :]
+            val_df = val_df.iloc[:val_df_size, :]
+        else: 
+            train_df = train_df.sample(frac=0.25)
+            val_df = val_df.sample(frac=0.25)
+
+        logger.info(f"Train df shape: {train_df.shape}")
+        logger.info(f"Validation df shape: {val_df.shape}")
+        resize_size = (256, 256)
+        transform = torchvision.transforms.Compose([
+                torchvision.transforms.Resize(resize_size), 
+                torchvision.transforms.Grayscale(num_output_channels=3),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) 
+            ])
+        train_dataset = ChestXrayDataset(df=train_df, transform=transform)
+        val_dataset = ChestXrayDataset(df=val_df, transform=transform)
         model = DenseNetBinaryClassifier(logger=logger)
         model.log_params()
 
-        logger.info('Started training')
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+        logger.info('Started training HLO')
         train_losses, val_losses = [], []
         train_f1, train_precision, train_recall, train_accuracy = [], [], [], []
         val_f1, val_precision, val_recall, val_accuracy = [], [], [], []
@@ -346,9 +409,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-of", "--output_folder", help="Name of folder output files will be added", required=False, default='./output/')
     parser.add_argument("-it", "--idun_time", help="The duration of job set on IDUN", default=None, required=False)
-    parser.add_argument("-t", "--test_mode", help="Test mode?", required=False, default=True)
+    parser.add_argument("-t", "--test", help="Test mode?", required=False, default=True)
     parser.add_argument("-m", "--model", choices=["densenet-pretrained-xray-multi-class", "densenet-pretrained-imagenet-binary-class"], help="Model to run", required=True)
     
     args = parser.parse_args()
-    args.test_mode = str_to_bool(args.test_mode)
+    args.test = str_to_bool(args.test)
     train(args)
