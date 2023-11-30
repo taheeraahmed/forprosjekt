@@ -5,11 +5,11 @@ def plot_metrics(train_arr, val_arr, output_folder, logger, type='None'):
     plt.figure(figsize=(10, 5))
     plt.plot(train_arr, label=f'Training {type}')
     plt.plot(val_arr, label=f'Validation {type}')
-    plt.title('Training and Validation Losses Per Epoch')
+    plt.title(f'Training and Validation {type} Per Epoch')
     plt.xlabel('Epochs')
     plt.ylabel(f'{type}')
     plt.legend()
-    plt.savefig(f'{output_folder}/plot_train_val_loss.png')
+    plt.savefig(f'{output_folder}/plot_train_val_{type}.png')
     logger.info(f'Saved images to: {output_folder}/plot_train_val_{type}.png')
 
 def denormalize(tensor, mean, std):
