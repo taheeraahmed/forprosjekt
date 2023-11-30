@@ -17,6 +17,10 @@ if [ "$TEST_MODE" = true ]; then
     IDUN_TIME=00:15:00
 fi
 
+if [ "$TEST_MODE" = false ]; then
+    JOB_NAME="TEST-${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
+fi
+
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
 
 mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER
