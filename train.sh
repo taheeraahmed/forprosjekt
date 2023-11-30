@@ -1,13 +1,17 @@
 #!/bin/bash
+TEST_MODE=false
+
+BATCH_SIZE=8
+LEARNING_RATE=0.001
+NUM_EPOCHS=15
+
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="multi-class-pretrained-xray"
 IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
-TEST_MODE=true
 MODEL=densenet-pretrained-xray-multi-class
+JOB_NAME="multi-class-pretrained-xray-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
 
-# Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
     IDUN_TIME=00:15:00
@@ -56,5 +60,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$JOB_NAME \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME,MODEL=$MODEL \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME,MODEL=$MODEL,BATCH_SIZE=$BATCH_SIZE,LEARNING_RATE=$LEARNING_RATE,NUM_EPOCHS=$NUM_EPOCHS \
   $CODE_PATH/train.slurm

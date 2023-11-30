@@ -41,6 +41,7 @@ class MultiClassDataLoader:
             train_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
             validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
         else:
+            self.logger.info(f'Using {train_size} fraction of dataset')
             train_size = int(self.train_size * len(dataset))
             validation_size = len(dataset) - train_size
             train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])

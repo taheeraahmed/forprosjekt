@@ -32,7 +32,7 @@ def train(args):
             batch_size = args.batch_size, \
             logger = logger, \
             test_size=0.01, \
-            train_size=0.3 \
+            train_size=0.7 \
         )
         train_dataloader, validation_dataloader = dataloaders.get_dataloaders()
 
