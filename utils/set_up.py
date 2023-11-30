@@ -67,3 +67,10 @@ def calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_do
     except:
         logger.info('Dont have IDUN time')
                         
+def str_to_bool(value):
+    if value.lower() == 'true':
+        return True
+    elif value.lower() == 'false':
+        return False
+    else:
+        raise ValueError(f"Cannot convert {value} to boolean.")

@@ -1,8 +1,8 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="multi-class"
-IDUN_TIME=120:00:00
+JOB_NAME="multi-class-pretrained-xray"
+IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=true
 MODEL=densenet-pretrained-xray-multi-class

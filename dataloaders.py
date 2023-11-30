@@ -55,7 +55,7 @@ class BinaryClassificationDataLoader:
     def __init__(self, data_path, test_mode, batch_size, logger, test_size=0.2, train_frac=0.25):
         self.data_path = data_path
         self.logger = logger
-        self.dataframe = self.get_binary_classification_df(logger=logger)
+        self.dataframe = self._get_binary_classification_df(logger=logger)
         self.test_mode = test_mode
         self.batch_size = batch_size
         self.test_size = test_size
@@ -67,7 +67,7 @@ class BinaryClassificationDataLoader:
             torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-    def get_binary_classification_df(self, logger):
+    def _get_binary_classification_df(self, logger):
         df = pd.read_csv(f'{self.data_path}/Data_Entry_2017.csv')
         # Add the image paths to the dataframe
         df['Image Files List'] = get_images_list(logger)
@@ -104,7 +104,7 @@ class BinaryClassificationDataLoader:
         logger.info('Created dataframe')
         return df
     
-    def prepare_dataframes(self):
+    def _prepare_dataframes(self):
         train_df, val_df = train_test_split(self.dataframe, test_size=self.test_size)
 
         if self.test_mode:
@@ -122,7 +122,7 @@ class BinaryClassificationDataLoader:
         return train_df, val_df
 
     def get_dataloaders(self):
-        train_df, val_df = self.prepare_dataframes()
+        train_df, val_df = self._prepare_dataframes()
 
         train_dataset = ChestXrayDataset(df=train_df, transform=self.transform)
         val_dataset = ChestXrayDataset(df=val_df, transform=self.transform)
