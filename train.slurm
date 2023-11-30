@@ -15,6 +15,6 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python train_pytorch.py -t $TEST_MODE -of $OUTPUT_FOLDER -it $IDUN_TIME -m $MODEL
+python train.py -t $TEST_MODE -of $OUTPUT_FOLDER -it $IDUN_TIME -m $MODEL -bs $BATCH_SIZE -lr $LEARNING_RATE -e $NUM_EPOCHS
 
 echo " --- Done running train.py ---"
