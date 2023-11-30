@@ -103,7 +103,7 @@ class TrainingModuleMultiClass:
         avg_train_loss = train_loss / len(train_dataloader)
         avg_train_accuracy = train_correct_predictions / train_total_predictions
 
-        self.logger.info(f'Epoch {epoch+1}: {avg_train_loss}, {avg_train_accuracy} ')
+        self.logger.info(f'Epoch {epoch+1} - train loss: {avg_train_loss}, train accuracy: {avg_train_accuracy} ')
         # Log metrics to TensorBoard
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
         self.writer.add_scalar('Accuracy/Train', avg_train_accuracy, epoch)
@@ -158,6 +158,8 @@ class TrainingModuleMultiClass:
         avg_val_accuracy = val_correct_predictions / val_total_predictions
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
         self.writer.add_scalar('Accuracy/Validation', avg_val_accuracy, epoch)
+
+        self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation accuracy: {avg_val_accuracy}')
 
         for cls_name in self.classnames:
             avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
