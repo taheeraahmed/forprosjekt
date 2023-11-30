@@ -1,5 +1,5 @@
 from utils.set_up import set_up, calculate_idun_time_left
-from datetime import datetime, timedelta
+from torch.utils.data import random_split
 from torch.utils.data import DataLoader
 from datasets import ChestXrayDataset, get_binary_classification_df, ModifiedNIH_Dataset
 from utils.create_dir import create_directory_if_not_exists
@@ -32,7 +32,14 @@ def list_directories(path):
 CLASSNAMES = ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 
                'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
-
+"""
+TODO: 
+    X Add validation loop as well
+    X Fix loss in Tensorboard
+    X Fix not values not being logged in tensorboard aaah
+    X Delete all tensorboard files
+    Start a real run B)
+"""
 def train(args):
     
     start_time = time.time()
@@ -71,14 +78,30 @@ def train(args):
         logger.info(f'{nih_img_dirs}')
         dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=data_transforms)
         if test: 
-            logger.warning('Using 10% of dataset')
-            subset_size = int(len(dataset) * 0.05) 
+            logger.warning('Using 1% of dataset')
+
+            subset_size = int(len(dataset) * 0.01)
             indices = torch.randperm(len(dataset)).tolist()
-            subset_indices = indices[:subset_size]
-            subset_dataset = Subset(dataset, subset_indices)
-            dataloader = torch.utils.data.DataLoader(subset_dataset, batch_size=batch_size)
+            test_subset_indices = indices[:subset_size]
+            test_subset_dataset = Subset(dataset, test_subset_indices)
+
+            # Split the test subset into test and validation sets
+            test_size = int(0.8 * len(test_subset_dataset))
+            validation_size = len(test_subset_dataset) - test_size
+            test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
+
+            # Create dataloaders for test and validation sets
+            train_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+            validation_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
         else:
-            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+            # Split the dataset into training and validation sets
+            train_size = int(0.8 * len(dataset))
+            validation_size = len(dataset) - train_size
+            train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])
+
+            # Create dataloaders for training and validation sets
+            train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            validation_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None # prevent pre-trained model calibration
@@ -89,13 +112,24 @@ def train(args):
         optimizer = optim.Adam(model.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
-        writer = SummaryWriter('runs/xray_experiment_3')
-        num_classes = 14
+        writer = SummaryWriter('runs/xray_experiment_4')
+
         for epoch in range(num_epochs):
             epoch_start_time = time.time() 
             model.train()
-            loop = tqdm(dataloader, leave=True)
-            for i, batch in enumerate(loop):
+
+            # Variables to store metrics for training
+            train_loss = 0.0
+            train_correct_predictions = 0
+            train_total_predictions = 0
+
+            # Initialize per-class metrics storage for training
+            train_class_losses = {classname: 0.0 for classname in CLASSNAMES}
+            train_class_correct = {classname: 0 for classname in CLASSNAMES}
+            train_class_total = {classname: 0 for classname in CLASSNAMES}
+
+            train_loop = tqdm(train_dataloader, leave=True)
+            for i, batch in enumerate(train_loop):
                 outputs = model(batch["img"])
                 targets = batch["lab"][:, :, None].squeeze(-1)
                 loss = criterion(outputs, targets)
@@ -105,47 +139,100 @@ def train(args):
                 optimizer.step()
                 optimizer.zero_grad()
 
+                # Accumulate training loss
+                train_loss += loss.item()
+
                 # Convert outputs and targets to binary format for each class
                 outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
                 targets_binary = targets.cpu().numpy()
 
-                # Calculate and log metrics
-                correct_predictions = np.sum(outputs_binary == targets_binary)
-                total_predictions = targets_binary.size
-                combined_accuracy = correct_predictions / total_predictions
+                # Calculate per-class metrics
+                for cls_idx, cls_name in enumerate(CLASSNAMES):
+                    cls_loss = criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                    train_class_losses[cls_name] += cls_loss
 
-                for cls in range(num_classes):
-                    cls_name = CLASSNAMES[cls]
+                    cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
+                    train_class_correct[cls_name] += cls_correct_predictions
+                    train_class_total[cls_name] += targets_binary.shape[0]
 
-                    cls_precision = precision_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
-                    cls_recall = recall_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
-                    cls_f1 = f1_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
-                    cls_accuracy = accuracy_score(targets_binary[:, cls], outputs_binary[:, cls])
+                # Calculate and accumulate accuracy and F1 score
+                train_correct_predictions += np.sum(outputs_binary == targets_binary)
+                train_total_predictions += targets_binary.size
 
-                    writer.add_scalar(f'{cls_name}/Precision', cls_precision, epoch)
-                    writer.add_scalar(f'{cls_name}/Recall', cls_recall, epoch)
-                    writer.add_scalar(f'{cls_name}/F1', cls_f1, epoch)
-                    writer.add_scalar(f'{cls_name}/Accuracy', cls_accuracy, epoch)
-
-                # Update tqdm loop and log to TensorBoard
-                loop.set_description(f"Epoch [{epoch+1}/{num_epochs}]")
-                loop.set_postfix(loss=loss.item(), acc=combined_accuracy)
-
-                writer.add_scalar('Loss/Training', loss.item(), epoch * len(dataloader) + i)
-                writer.add_scalar('Accuracy/Train', combined_accuracy, epoch * len(dataloader) + i)
-                
-                
-                # Make a grid from batch images
                 if i % 2 == 0:
                     img_grid = torchvision.utils.make_grid(batch["img"])
                     writer.add_image('four_xray_images', img_grid)
-                
-            # Elapsed time
-            logger.info(f'Epoch {epoch+1} - Loss {loss.item()}, accuracy {combined_accuracy[-1]}')
-            epoch_end_time = time.time()  # End time of the current epoch
+
+            # Calculate average metrics for training
+            avg_train_loss = train_loss / len(train_dataloader)
+            avg_train_accuracy = train_correct_predictions / train_total_predictions
+
+            # Calculate and log per-class metrics for training
+            for cls_name in CLASSNAMES:
+                avg_cls_loss = train_class_losses[cls_name] / len(train_dataloader)
+                cls_accuracy = train_class_correct[cls_name] / train_class_total[cls_name]
+                writer.add_scalar(f'Train/Loss/{cls_name}', avg_cls_loss, epoch)
+                writer.add_scalar(f'Train/Accuracy/{cls_name}', cls_accuracy, epoch)
+
+            # Validation loop
+            model.eval()
+            val_loss = 0.0
+            val_correct_predictions = 0
+            val_total_predictions = 0
+
+            # Initialize per-class metrics storage for validation
+            val_class_losses = {classname: 0.0 for classname in CLASSNAMES}
+            val_class_correct = {classname: 0 for classname in CLASSNAMES}
+            val_class_total = {classname: 0 for classname in CLASSNAMES}
+
+            with torch.no_grad():
+                val_loop = tqdm(validation_dataloader, leave=True)
+                for i, batch in enumerate(val_loop):
+                    outputs = model(batch["img"])
+                    targets = batch["lab"][:, :, None].squeeze(-1)
+                    loss = criterion(outputs, targets)
+
+                    # Accumulate validation loss
+                    val_loss += loss.item()
+
+                    outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+                    targets_binary = targets.cpu().numpy()
+
+                    # Calculate per-class metrics
+                    for cls_idx, cls_name in enumerate(CLASSNAMES):
+                        cls_loss = criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                        val_class_losses[cls_name] += cls_loss
+
+                        cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
+                        val_class_correct[cls_name] += cls_correct_predictions
+                        val_class_total[cls_name] += targets_binary.shape[0]
+
+                    # Calculate and accumulate accuracy and F1 score
+                    val_correct_predictions += np.sum(outputs_binary == targets_binary)
+                    val_total_predictions += targets_binary.size
+
+            # Calculate average metrics for validation
+            avg_val_loss = val_loss / len(validation_dataloader)
+            avg_val_accuracy = val_correct_predictions / val_total_predictions
+
+            for cls_name in CLASSNAMES:
+                avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
+                cls_accuracy = val_class_correct[cls_name] / val_class_total[cls_name]
+                writer.add_scalar(f'Validation/Loss/{cls_name}', avg_cls_loss, epoch)
+                writer.add_scalar(f'Validation/Accuracy/{cls_name}', cls_accuracy, epoch)
+
+            # Log metrics to TensorBoard
+            writer.add_scalar('Loss/Train', avg_train_loss, epoch)
+            writer.add_scalar('Accuracy/Train', avg_train_accuracy, epoch)
+            writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
+            writer.add_scalar('Accuracy/Validation', avg_val_accuracy, epoch)
+
+            # Log elapsed time for epoch
+            epoch_end_time = time.time() 
             epoch_duration = epoch_end_time - epoch_start_time
 
             calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, logger)
+            logger.info(f'Epoch {epoch+1} - Train loss: {avg_train_loss}, Train accuracy: {avg_train_accuracy}, Val loss: {avg_val_loss}, Val accuracy: {avg_val_accuracy}')
 
         writer.close()
     elif model_arg == 'densenet-pretrained-imagenet-binary-class':
