@@ -4,9 +4,9 @@ import os
 from datetime import datetime
 from utils.create_dir import create_directory_if_not_exists
 from utils.check_gpu import check_gpu
-import torch
+from datetime import datetime, timedelta
 
-def set_up(output_folder):
+def set_up(output_folder, idun_time, start_time):
     result = pyfiglet.figlet_format("Thoracic disease detection", font = "slant")  
     print(result) 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -27,4 +27,13 @@ def set_up(output_folder):
     logger.info(f'Root directory of project: {project_root}')
     check_gpu(logger)
     logger.info('Set-up completed')
-    return logger
+
+    # Calculate at what time IDUN job is done
+    try:
+        hours, minutes, seconds = map(int, idun_time.split(":"))
+        now = datetime.fromtimestamp(start_time)
+        idun_datetime_done = now + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+    except:
+        logger.info('Didnt get IDUN time')
+
+    return logger, idun_datetime_done

@@ -1,11 +1,11 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="pytorch-binary-classify-one-fourth-of-data"
-IDUN_TIME=90:00:00
+JOB_NAME="xrayvision"
+IDUN_TIME=120:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=true
-
+MODEL=densenet-pretrained-xray-multi-class
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
@@ -34,8 +34,8 @@ rsync -av \
   --exclude='scripts' \
   --exclude='output' \
   --exclude='.git' \
-  --exclude='__pycache' \
-  --exclude='utils/__pycache' \
+  --exclude='__pycache__' \
+  --exclude='utils/__pycache__' \
   --exclude='mlruns/' \
   /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
 
@@ -55,5 +55,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$JOB_NAME \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME,MODEL=$MODEL \
   $CODE_PATH/train.slurm
