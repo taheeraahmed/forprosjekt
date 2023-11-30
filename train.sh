@@ -1,11 +1,12 @@
 #!/bin/bash
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-JOB_NAME="xrayvision"
+JOB_NAME="xrayvision-and-tensorboard"
 IDUN_TIME=120:00:00
 CURRENT_PATH=$(pwd)
 TEST_MODE=true
 MODEL=densenet-pretrained-xray-multi-class
+
 # Check if TEST_MODE is true and append "test" to JOB_NAME
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"

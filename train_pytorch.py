@@ -1,12 +1,13 @@
-from utils.set_up import set_up
+from utils.set_up import set_up, calculate_idun_time_left
 from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
-from datasets import ChestXrayDataset, get_binary_classification_df
+from datasets import ChestXrayDataset, get_binary_classification_df, ModifiedNIH_Dataset
 from utils.create_dir import create_directory_if_not_exists
 from utils.plot_stuff import plot_metrics, plot_pred
 import tqdm
 from models import DenseNetBinaryClassifier
-from torchvision import transforms
+import torchvision
+from torch.utils.data import Subset
 from tqdm import tqdm
 import math
 import argparse
@@ -19,12 +20,21 @@ import torch
 import torchxrayvision as xrv
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import os
 
+def list_directories(path):
+    return [os.path.join(d, f'{path}/{d}/images') for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
+
+CLASSNAMES = ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 
+               'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 
+               'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
 
 def train(args):
+    
     start_time = time.time()
 
     # Setting argument variables
@@ -52,12 +62,24 @@ def train(args):
         num_epochs = 2
         batch_size = 3
 
+    logger.info(f'test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
+
     if model_arg == 'densenet-pretrained-xray-multi-class':
-        data_transforms = transforms.Compose([xrv.datasets.XRayCenterCrop(),
+        data_transforms = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),
         xrv.datasets.XRayResizer(224)])
-        dataset = xrv.datasets.NIH_Dataset(imgpath=f'{data_path}/images_001/images',
-        transform=data_transforms)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+        nih_img_dirs = list_directories(data_path)
+        logger.info(f'{nih_img_dirs}')
+        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=data_transforms)
+        if test: 
+            logger.warning('Using 10% of dataset')
+            subset_size = int(len(dataset) * 0.05) 
+            indices = torch.randperm(len(dataset)).tolist()
+            subset_indices = indices[:subset_size]
+            subset_dataset = Subset(dataset, subset_indices)
+            dataloader = torch.utils.data.DataLoader(subset_dataset, batch_size=batch_size)
+        else:
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None # prevent pre-trained model calibration
         model.classifier = torch.nn.Linear(1024,14) # reinitialize classifier
@@ -67,13 +89,65 @@ def train(args):
         optimizer = optim.Adam(model.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
-        for batch in dataloader:
-            outputs = model(batch["img"])
-            targets = batch["lab"][:, :, None]
-            targets = targets.squeeze(-1)  # This removes the last dimension
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
+        writer = SummaryWriter('runs/xray_experiment_3')
+        num_classes = 14
+        for epoch in range(num_epochs):
+            epoch_start_time = time.time() 
+            model.train()
+            loop = tqdm(dataloader, leave=True)
+            for i, batch in enumerate(loop):
+                outputs = model(batch["img"])
+                targets = batch["lab"][:, :, None].squeeze(-1)
+                loss = criterion(outputs, targets)
+                
+                # Perform backward pass and optimization
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+                # Convert outputs and targets to binary format for each class
+                outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+                targets_binary = targets.cpu().numpy()
+
+                # Calculate and log metrics
+                correct_predictions = np.sum(outputs_binary == targets_binary)
+                total_predictions = targets_binary.size
+                combined_accuracy = correct_predictions / total_predictions
+
+                for cls in range(num_classes):
+                    cls_name = CLASSNAMES[cls]
+
+                    cls_precision = precision_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
+                    cls_recall = recall_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
+                    cls_f1 = f1_score(targets_binary[:, cls], outputs_binary[:, cls], zero_division=0)
+                    cls_accuracy = accuracy_score(targets_binary[:, cls], outputs_binary[:, cls])
+
+                    writer.add_scalar(f'{cls_name}/Precision', cls_precision, epoch)
+                    writer.add_scalar(f'{cls_name}/Recall', cls_recall, epoch)
+                    writer.add_scalar(f'{cls_name}/F1', cls_f1, epoch)
+                    writer.add_scalar(f'{cls_name}/Accuracy', cls_accuracy, epoch)
+
+                # Update tqdm loop and log to TensorBoard
+                loop.set_description(f"Epoch [{epoch+1}/{num_epochs}]")
+                loop.set_postfix(loss=loss.item(), acc=combined_accuracy)
+
+                writer.add_scalar('Loss/Training', loss.item(), epoch * len(dataloader) + i)
+                writer.add_scalar('Accuracy/Train', combined_accuracy, epoch * len(dataloader) + i)
+                
+                
+                # Make a grid from batch images
+                if i % 2 == 0:
+                    img_grid = torchvision.utils.make_grid(batch["img"])
+                    writer.add_image('four_xray_images', img_grid)
+                
+            # Elapsed time
+            logger.info(f'Epoch {epoch+1} - Loss {loss.item()}, accuracy {combined_accuracy[-1]}')
+            epoch_end_time = time.time()  # End time of the current epoch
+            epoch_duration = epoch_end_time - epoch_start_time
+
+            calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, logger)
+
+        writer.close()
     elif model_arg == 'densenet-pretrained-imagenet-binary-class':
         df = get_binary_classification_df(logger, data_path)
         train_df, val_df = train_test_split(df, test_size=test_size)  # Adjust the test_size as needed
@@ -90,17 +164,16 @@ def train(args):
         logger.info(f"Train df shape: {train_df.shape}")
         logger.info(f"Validation df shape: {val_df.shape}")
         resize_size = (256, 256)
-        transform = transforms.Compose([
-                transforms.Resize(resize_size), 
-                transforms.Grayscale(num_output_channels=3),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) 
+        transform = torchvision.transforms.Compose([
+                torchvision.transforms.Resize(resize_size), 
+                torchvision.transforms.Grayscale(num_output_channels=3),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) 
             ])
         train_dataset = ChestXrayDataset(df=train_df, transform=transform)
         val_dataset = ChestXrayDataset(df=val_df, transform=transform)
         model = DenseNetBinaryClassifier(logger=logger)
         model.log_params()
-        logger.info(f'size: {resize_size}, test_size: {test_size}, batch_size: {batch_size}, num_epochs: {num_epochs}, lr: {lr}')
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -213,26 +286,9 @@ def train(args):
                 # Elapsed time
                 epoch_end_time = time.time()  # End time of the current epoch
                 epoch_duration = epoch_end_time - epoch_start_time
-                remaining_epochs = num_epochs - (epoch + 1)
-                estimated_remaining_time = epoch_duration * remaining_epochs
-                # Calculate the estimated completion time
-                estimated_completion_time = datetime.now() + timedelta(seconds=estimated_remaining_time)
-
-
-                logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
-                logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
-                logger.info(f"Estimated completion time: {estimated_completion_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
                 # Compare IDUN time with completion time and log
-                try:
-                    if idun_datetime_done > estimated_completion_time:
-                        time_diff = idun_datetime_done - estimated_completion_time
-                        logger.info(f"There is enough time allocated for the training to completely finish. Time difference: {time_diff}")
-                    else:
-                        time_diff = estimated_completion_time - idun_datetime_done
-                        logger.warning(f"There might not be enough time allocated on IDUN. Time difference: {time_diff}")
-                except:
-                    logger.info('Dont have IDUN time')
+                calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, logger)
 
         end_time = time.time()
         elapsed_time = end_time - start_time

@@ -37,3 +37,23 @@ def set_up(output_folder, idun_time, start_time):
         logger.info('Didnt get IDUN time')
 
     return logger, idun_datetime_done
+
+def calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, logger):
+    remaining_epochs = num_epochs - (epoch + 1)
+    estimated_remaining_time = epoch_duration * remaining_epochs
+    # Calculate the estimated completion time
+    estimated_completion_time = datetime.now() + timedelta(seconds=estimated_remaining_time)
+
+    logger.info(f"Epoch {epoch + 1} completed in {epoch_duration:.2f} seconds")
+    logger.info(f"Estimated time remaining: {estimated_remaining_time:.2f} seconds")
+    logger.info(f"Estimated completion time: {estimated_completion_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    try:
+        if idun_datetime_done > estimated_completion_time:
+            time_diff = idun_datetime_done - estimated_completion_time
+            logger.info(f"There is enough time allocated for the training to completely finish. Time difference: {time_diff}")
+        else:
+            time_diff = estimated_completion_time - idun_datetime_done
+            logger.warning(f"There might not be enough time allocated on IDUN. Time difference: {time_diff}")
+    except:
+        logger.info('Dont have IDUN time')
+                        

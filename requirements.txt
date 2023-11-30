@@ -12,3 +12,4 @@ scikit-learn
 pyfiglet
 ipykernel
 monai
+torch-tb-profiler
