@@ -10,13 +10,12 @@ import os
 import pandas as pd
 
 class MultiClassDataLoader:
-    def __init__(self, data_path, test, batch_size, logger, test_size=0.01, train_size=0.8):
+    def __init__(self, data_path, test_mode, batch_size, logger, train_frac=0.8):
         self.data_path = data_path
-        self.test = test
+        self.test_mode = test_mode
         self.batch_size = batch_size
         self.logger = logger
-        self.test_size = test_size
-        self.train_size = train_size
+        self.train_frac = train_frac
         self.transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(), xrv.datasets.XRayResizer(224)])
 
     def list_directories(self):
@@ -27,21 +26,21 @@ class MultiClassDataLoader:
         self.logger.info(f'Data directories: {nih_img_dirs}')
         dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=self.transform)
 
-        if self.test:
+        if self.test_mode:
             self.logger.warning('Using a subset of the dataset for testing')
-            subset_size = int(len(dataset) * self.test_size)
+            subset_size = int(len(dataset) * 0.01)
             indices = torch.randperm(len(dataset)).tolist()
             test_subset_indices = indices[:subset_size]
             test_subset_dataset = Subset(dataset, test_subset_indices)
 
-            test_size = int(self.train_size * len(test_subset_dataset))
-            validation_size = len(test_subset_dataset) - test_size
+            test_size = int(0.001 * len(test_subset_dataset))
+            validation_size = int(len(test_subset_dataset) - test_size)
             test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
 
             train_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
             validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
         else:
-            train_size = int(self.train_size * len(dataset))
+            train_size = int(self.train_frac * len(dataset))
             self.logger.info(f'Using {train_size} fraction of dataset')
             validation_size = len(dataset) - train_size
             train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])
@@ -50,7 +49,6 @@ class MultiClassDataLoader:
             validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
 
         return train_dataloader, validation_dataloader
-
 
 class BinaryClassificationDataLoader:
     def __init__(self, data_path, test_mode, batch_size, logger, test_size=0.2, train_frac=0.25):

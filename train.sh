@@ -10,7 +10,7 @@ USER=$(whoami)
 IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
 MODEL=densenet-pretrained-xray-multi-class
-JOB_NAME="multi-class-pretrained-xray-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
+JOB_NAME="multi-class-pretrained-xray"
 
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
