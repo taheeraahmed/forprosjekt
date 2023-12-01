@@ -26,19 +26,25 @@ class MultiClassDataLoader:
         self.logger.info(f'Data directories: {nih_img_dirs}')
         dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=self.transform)
 
+        if len(dataset) == 0:
+            self.logger.error('The dataset is empty.')
+            raise ValueError("The dataset is empty. Please check your data source.")
+
         if self.test_mode:
             self.logger.warning('Using a subset of the dataset for testing')
-            subset_size = int(len(dataset) * 0.01)
+            subset_size = int(len(dataset) * 0.1)
             indices = torch.randperm(len(dataset)).tolist()
             test_subset_indices = indices[:subset_size]
             test_subset_dataset = Subset(dataset, test_subset_indices)
 
-            test_size = int(0.001 * len(test_subset_dataset))
+            test_size = int(0.4 * len(test_subset_dataset))
             validation_size = int(len(test_subset_dataset) - test_size)
             test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
 
             train_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
             validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
+
+            self.logger.info(f'Length of train dataloader: {len(train_dataloader)}')
         else:
             train_size = int(self.train_frac * len(dataset))
             self.logger.info(f'Using {train_size} fraction of dataset')

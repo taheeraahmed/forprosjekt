@@ -47,6 +47,9 @@ class ModifiedNIH_Dataset(NIH_Dataset):
         sample = apply_transforms(sample, self.data_aug)
         
         return sample
+    
+    def __len__(self):
+        return super(ModifiedNIH_Dataset, self).__len__()
 
 class ChestXrayDataset(Dataset):
     def __init__(self, df, transform=None):
