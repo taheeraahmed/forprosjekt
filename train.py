@@ -91,9 +91,6 @@ def train(args):
         logger.error('Invalid model argument')
         sys.exit(1)
     
-
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-of", "--output_folder", help="Name of folder output files will be added", required=False, default='./output/')
@@ -101,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--test_mode", help="Test mode?", required=False, default=True)
     parser.add_argument("-m", "--model", choices=["densenet-pretrained-xray-multi-class", "densenet-pretrained-imagenet-binary-class"], help="Model to run", required=True)
     parser.add_argument("-e", "--num_epochs", help="Number of epochs", type=int, default=15)
-    parser.add_argument("-lr", "--learning_rate", help="Learning rate", type=int, default=0.01)
+    parser.add_argument("-lr", "--learning_rate", help="Learning rate", type=float, default=0.01)
     parser.add_argument("-bs", "--batch_size", help="Batch size", type=int, default=8)
 
     args = parser.parse_args()

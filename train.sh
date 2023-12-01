@@ -18,7 +18,7 @@ if [ "$TEST_MODE" = true ]; then
 fi
 
 if [ "$TEST_MODE" = false ]; then
-    JOB_NAME="TEST-${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
+    JOB_NAME="${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
 fi
 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
