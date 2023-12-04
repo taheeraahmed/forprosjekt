@@ -7,7 +7,7 @@ import PIL.Image as Image
 
 from torch.utils.data import Dataset
 from utils.get_images_list import get_images_list
-from torchxrayvision.datasets import NIH_Dataset
+from torchxrayvision.datasets import NIH_Dataset, apply_transforms
 from torchvision import transforms
 class ModifiedNIH_Dataset(NIH_Dataset):
     def __init__(self, imgpaths, transforms, logger = None, *args, **kwargs):
@@ -33,6 +33,8 @@ class ModifiedNIH_Dataset(NIH_Dataset):
 
         imgid = self.csv['Image Index'].iloc[idx]
 
+        self.logger.info(f'Transforms \n {self.transforms}')
+
         # Determine which directory the image is in
         for img_path in self.imgpaths:
             full_img_path = os.path.join(img_path, imgid)
@@ -40,18 +42,23 @@ class ModifiedNIH_Dataset(NIH_Dataset):
                 break
         
         img = Image.open(full_img_path).convert('L')  
-        if self.transform:
-            img = self.transform(img)
+        self.logger.info(f'Original shape: {img.size}')
 
         # Convert grayscale to RGB
         img = img.convert('RGB')
+        self.logger.info(f'RGB shape: {img.size}')
 
-        # Convert image to PyTorch tensor
-        img_tensor = transforms.ToTensor()(img)
+        # Apply transformations directly for debugging
+        debug_transforms = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+        img_transformed = debug_transforms(img)
+        self.logger.info(f'Transformed shape (after transforms): {img_transformed.size}')
 
-        self.logger.info(f'Shape of img {img_tensor.shape}')
-
-        sample = {"img": img_tensor, "lab": self.labels[idx]}
+        sample = {"img": img_transformed, "lab": self.labels[idx]}
         
         if self.pathology_masks:
             sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
