@@ -39,13 +39,13 @@ class TrainingModuleMultiClass:
         # TensorBoard Writer
         self.writer = SummaryWriter(log_dir)
 
-    def train(self, train_dataloader, validation_dataloader, num_epochs, idun_datetime_done):
+    def train(self, train_dataloader, validation_dataloader, num_epochs, idun_datetime_done, model_arg):
         for epoch in range(num_epochs):
             epoch_start_time = time.time() 
             self.logger.info(f'Started epoch {epoch+1}')
             
-            self._train_epoch(train_dataloader, epoch)
-            self._validate_epoch(validation_dataloader, epoch)
+            self._train_epoch(train_dataloader, epoch, model_arg)
+            self._validate_epoch(validation_dataloader, epoch, model_arg)
             self.scheduler.step()
 
             epoch_end_time = time.time()  # End time of the current epoch
@@ -64,7 +64,7 @@ class TrainingModuleMultiClass:
         torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
         self.logger.info(f'Checkpoint saved for epoch {epoch+1} with f1 score: {current_val_accuracy}')
 
-    def _train_epoch(self, train_dataloader, epoch):
+    def _train_epoch(self, train_dataloader, epoch, model_arg):
         self.model.train()
 
         # Variables to store metrics for training
@@ -82,7 +82,10 @@ class TrainingModuleMultiClass:
             self.optimizer.zero_grad()
             # Forward pass through the model
             outputs = self.model(batch["img"])
-            logits = outputs.logits
+            if model_arg == 'densenet-pretrained-xray-multi-class':
+                logits = outputs = self.model(batch["img"])
+            else:
+                logits = outputs.logits
             targets = batch["lab"]
 
             # Compute loss
@@ -133,7 +136,7 @@ class TrainingModuleMultiClass:
             self.writer.add_scalar(f'Train/Loss/{cls_name}', avg_cls_loss, epoch)
             self.writer.add_scalar(f'Train/Accuracy/{cls_name}', cls_accuracy, epoch)
             
-    def _validate_epoch(self, validation_dataloader, epoch):
+    def _validate_epoch(self, validation_dataloader, epoch, model_arg):
         # Validation loop
         self.model.eval()
         val_loss = 0.0
@@ -149,7 +152,11 @@ class TrainingModuleMultiClass:
             val_loop = tqdm(validation_dataloader, leave=True)
             for i, batch in enumerate(val_loop):
                 outputs = self.model(batch["img"])
-                logits = outputs.logits
+                # Need to make it fit for the transformer and densenet--- Hacky :) 
+                if model_arg == 'densenet-pretrained-xray-multi-class':
+                    logits = outputs = self.model(batch["img"])
+                else:
+                    logits = outputs.logits
                 targets = batch["lab"]
                 loss = self.criterion(logits, targets)
 

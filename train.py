@@ -43,6 +43,7 @@ def train(args):
             batch_size = args.batch_size, 
             logger = logger, 
             train_frac = train_size, 
+            model_arg = args.model,
         )
 
         train_dataloader, validation_dataloader = dataloaders.get_dataloaders()
@@ -62,7 +63,8 @@ def train(args):
             train_dataloader = train_dataloader,
             validation_dataloader = validation_dataloader,
             num_epochs = args.num_epochs,
-            idun_datetime_done = idun_datetime_done
+            idun_datetime_done = idun_datetime_done,
+            model_arg = model_arg
         )  
     elif model_arg == 'densenet-pretrained-imagenet-binary-class':
         dataloaders = BinaryClassificationDataLoader(
@@ -98,11 +100,12 @@ def train(args):
         feature_extractor = ViTFeatureExtractor.from_pretrained("google/vit-base-patch16-224")
 
         dataloaders = MultiClassDataLoader(
-            data_path=data_path, 
+            data_path= data_path, 
             test_mode = test_mode, 
             batch_size = args.batch_size, 
             logger = logger, 
             train_frac = train_size, 
+            model_arg = args.model,
         )
 
         train_dataloader, validation_dataloader = dataloaders.get_dataloaders()
@@ -118,7 +121,8 @@ def train(args):
             train_dataloader = train_dataloader, 
             validation_dataloader = validation_dataloader,
             num_epochs = args.num_epochs,
-            idun_datetime_done = idun_datetime_done 
+            idun_datetime_done = idun_datetime_done,
+            model_arg = model_arg
         )
     else: 
         logger.error('Invalid model argument')

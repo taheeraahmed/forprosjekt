@@ -1,17 +1,18 @@
 #!/bin/bash
-TEST_MODE=true
+TEST_MODE=false
 
-BATCH_SIZE=32
+BATCH_SIZE=16
 LEARNING_RATE=0.001
-NUM_EPOCHS=30
+NUM_EPOCHS=20
 
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
 IDUN_TIME=120:00:00
 CURRENT_PATH=$(pwd)
-MODEL=vit-imagenet-multi-class
-JOB_NAME="multi-class-pretrained-vit-xray"
+MODEL=densenet-pretrained-xray-multi-class
 
+
+JOB_NAME=${MODEL}
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
     IDUN_TIME=00:15:00

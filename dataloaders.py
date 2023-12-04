@@ -10,10 +10,11 @@ import os
 import pandas as pd
 
 class MultiClassDataLoader:
-    def __init__(self, data_path, test_mode, batch_size, logger, train_frac=0.8):
+    def __init__(self, data_path, test_mode, model_arg, batch_size, logger, train_frac=0.8):
         self.data_path = data_path
         self.test_mode = test_mode
         self.batch_size = batch_size
+        self.model_arg = model_arg
         self.logger = logger
         self.train_frac = train_frac
         # TODO: These aren't passed forward to ModifiedNIH_Dataset BUG :))
@@ -30,7 +31,7 @@ class MultiClassDataLoader:
     def get_dataloaders(self):
         nih_img_dirs = self.list_directories()
         self.logger.info(f'Data directories: {nih_img_dirs}')
-        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transforms=self.transforms, logger=self.logger)
+        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transforms=self.transforms, logger=self.logger, model_arg=self.model_arg)
 
         if len(dataset) == 0:
             self.logger.error('The dataset is empty.')
