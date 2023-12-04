@@ -38,19 +38,22 @@ class MultiClassDataLoader:
 
         if self.test_mode:
             self.logger.warning('Using a subset of the dataset for testing')
-            subset_size = int(len(dataset) * 0.1)
+            subset_size = 40
             indices = torch.randperm(len(dataset)).tolist()
-            test_subset_indices = indices[:subset_size]
-            test_subset_dataset = Subset(dataset, test_subset_indices)
+            test_mode_subset_indices = indices[:subset_size]
+            test_mode_subset_dataset = Subset(dataset, test_mode_subset_indices)
 
-            test_size = int(0.01 * len(test_subset_dataset))
-            validation_size = int(len(test_subset_dataset) - test_size)
-            test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
+            # Adjust the sizes for splitting the subset
+            test_size = int(0.8 * subset_size)  # 20% of the subset size
+            validation_size = subset_size - test_size  # Rest of the subset for validation
+            if validation_size <= 0:
+                raise ValueError("Validation set has no data. Adjust the sizes.")
+
+            test_dataset, validation_dataset = random_split(test_mode_subset_dataset, [test_size, validation_size])
 
             train_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
             validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
 
-            self.logger.info(f'Length of train dataloader: {len(train_dataloader)}')
         else:
             train_size = int(self.train_frac * len(dataset))
             self.logger.info(f'Using {train_size} fraction of dataset')
