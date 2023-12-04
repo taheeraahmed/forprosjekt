@@ -30,7 +30,7 @@ class TrainingModuleMultiClass:
         # Optimizer and loss function
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.CrossEntropyLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
 
         self.best_val_accuracy = 0.0
@@ -78,10 +78,13 @@ class TrainingModuleMultiClass:
 
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
+            # Forward pass through the model
             outputs = self.model(batch["img"])
-            self.logger.info(f'batch["img"] {type(batch["img"])}')
-            targets = batch["lab"][:, :, None].squeeze(-1)
-            loss = self.criterion(outputs, targets)
+            logits = outputs.logits
+            targets = batch["lab"]
+
+            # Compute loss
+            loss = self.criterion(logits, targets)
             
             # Perform backward pass and optimization
             loss.backward()
@@ -91,13 +94,13 @@ class TrainingModuleMultiClass:
             # Accumulate training loss
             train_loss += loss.item()
 
-            # Convert outputs and targets to binary format for each class
-            outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+            # Convert outputs (logits) and targets to binary format for each class
+            outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
             targets_binary = targets.cpu().numpy()
 
             # Calculate per-class metrics
             for cls_idx, cls_name in enumerate(self.classnames):
-                cls_loss = self.criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
                 train_class_losses[cls_name] += cls_loss
 
                 cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
@@ -144,18 +147,19 @@ class TrainingModuleMultiClass:
             val_loop = tqdm(validation_dataloader, leave=True)
             for i, batch in enumerate(val_loop):
                 outputs = self.model(batch["img"])
-                targets = batch["lab"][:, :, None].squeeze(-1)
-                loss = self.criterion(outputs, targets)
+                logits = outputs.logits
+                targets = batch["lab"]
+                loss = self.criterion(logits, targets)
 
                 # Accumulate validation loss
                 val_loss += loss.item()
 
-                outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+                outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
                 targets_binary = targets.cpu().numpy()
 
                 # Calculate per-class metrics
                 for cls_idx, cls_name in enumerate(self.classnames):
-                    cls_loss = self.criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                    cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
                     val_class_losses[cls_name] += cls_loss
 
                     cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])

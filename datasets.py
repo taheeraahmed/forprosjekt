@@ -6,8 +6,7 @@ import numpy as np
 import PIL.Image as Image
 
 from torch.utils.data import Dataset
-from utils.get_images_list import get_images_list
-from torchxrayvision.datasets import NIH_Dataset, apply_transforms
+from torchxrayvision.datasets import NIH_Dataset
 from torchvision import transforms
 class ModifiedNIH_Dataset(NIH_Dataset):
     def __init__(self, imgpaths, transforms, logger = None, *args, **kwargs):
@@ -33,8 +32,6 @@ class ModifiedNIH_Dataset(NIH_Dataset):
 
         imgid = self.csv['Image Index'].iloc[idx]
 
-        self.logger.info(f'Transforms \n {self.transforms}')
-
         # Determine which directory the image is in
         for img_path in self.imgpaths:
             full_img_path = os.path.join(img_path, imgid)
@@ -42,12 +39,10 @@ class ModifiedNIH_Dataset(NIH_Dataset):
                 break
         
         img = Image.open(full_img_path).convert('L')  
-        self.logger.info(f'Original shape: {img.size}')
-
         # Convert grayscale to RGB
         img = img.convert('RGB')
-        self.logger.info(f'RGB shape: {img.size}')
 
+        # TODO: Fix this:)) ??
         # Apply transformations directly for debugging
         debug_transforms = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -56,7 +51,6 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         ])
         img_transformed = debug_transforms(img)
-        self.logger.info(f'Transformed shape (after transforms): {img_transformed.size}')
 
         sample = {"img": img_transformed, "lab": self.labels[idx]}
         

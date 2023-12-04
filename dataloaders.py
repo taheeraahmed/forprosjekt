@@ -16,6 +16,7 @@ class MultiClassDataLoader:
         self.batch_size = batch_size
         self.logger = logger
         self.train_frac = train_frac
+        # TODO: These aren't passed forward to ModifiedNIH_Dataset BUG :))
         self.transforms = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.CenterCrop(224),
@@ -42,7 +43,7 @@ class MultiClassDataLoader:
             test_subset_indices = indices[:subset_size]
             test_subset_dataset = Subset(dataset, test_subset_indices)
 
-            test_size = int(0.4 * len(test_subset_dataset))
+            test_size = int(0.01 * len(test_subset_dataset))
             validation_size = int(len(test_subset_dataset) - test_size)
             test_dataset, validation_dataset = random_split(test_subset_dataset, [test_size, validation_size])
 

@@ -110,7 +110,7 @@ def train(args):
         trainer = TrainingModuleMultiClass(
             model = model, 
             logger = logger, 
-            log_dir='runs'
+            log_dir=f'runs/{args.output_folder}'
         )
         trainer.train(
             train_dataloader = train_dataloader, 
