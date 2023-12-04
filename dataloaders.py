@@ -24,7 +24,7 @@ class MultiClassDataLoader:
     def get_dataloaders(self):
         nih_img_dirs = self.list_directories()
         self.logger.info(f'Data directories: {nih_img_dirs}')
-        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=self.transform)
+        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=self.transform, logger=self.logger)
 
         if len(dataset) == 0:
             self.logger.error('The dataset is empty.')

@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 
 class TrainingModuleMultiClass:
-    def __init__(self, model, logger, step_size=5, gamma=0.1, log_dir='runs'):
+    def __init__(self, model, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
         # Initialize the model
         self.model = model
         self.logger = logger
@@ -28,9 +28,12 @@ class TrainingModuleMultiClass:
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
 
         # Optimizer and loss function
-        self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
         self.criterion = nn.BCEWithLogitsLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+
+        self.best_val_accuracy = 0.0
 
         # TensorBoard Writer
         self.writer = SummaryWriter(log_dir)
@@ -46,10 +49,19 @@ class TrainingModuleMultiClass:
 
             epoch_end_time = time.time()  # End time of the current epoch
             epoch_duration = epoch_end_time - epoch_start_time
-            # Compare IDUN time with completion time and log
             calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, self.logger)
 
         self.writer.close()
+
+    def _save_checkpoint(self, epoch, current_val_accuracy):
+        checkpoint = {
+            'epoch': epoch + 1,
+            'state_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'best_val_accuracy': self.best_val_accuracy
+        }
+        torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
+        self.logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
 
     def _train_epoch(self, train_dataloader, epoch):
         self.model.train()
@@ -160,12 +172,18 @@ class TrainingModuleMultiClass:
         self.writer.add_scalar('Accuracy/Validation', avg_val_accuracy, epoch)
 
         self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation accuracy: {avg_val_accuracy}')
+        
+        current_val_accuracy = avg_val_accuracy
+        if current_val_accuracy > self.best_val_accuracy:
+            self.best_val_accuracy = current_val_accuracy
+            self._save_checkpoint(epoch, current_val_accuracy)
 
         for cls_name in self.classnames:
             avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
             cls_accuracy = val_class_correct[cls_name] / val_class_total[cls_name]
             self.writer.add_scalar(f'Validation/Loss/{cls_name}', avg_cls_loss, epoch)
             self.writer.add_scalar(f'Validation/Accuracy/{cls_name}', cls_accuracy, epoch)
+
 class TrainingModuleBinaryClass:
     def __init__(self, model, args, logger, model_output_folder, output_folder, idun_time_done):
         self.model = model
@@ -243,6 +261,7 @@ class TrainingModuleBinaryClass:
         current_val_accuracy = self.val_accuracy[-1]
         if current_val_accuracy > self.best_val_accuracy:
             self.save_checkpoint(epoch, current_val_accuracy)
+            self.best_val_accuracy = current_val_accuracy
 
     def save_checkpoint(self, epoch, current_val_accuracy):
         checkpoint = {

@@ -1,18 +1,17 @@
 import os
-import pandas as pd
 from PIL import Image
 import torch
 from skimage.io import imread
+import numpy as np
 
 from torch.utils.data import Dataset
 from utils.get_images_list import get_images_list
 from torchxrayvision.datasets import NIH_Dataset, apply_transforms
-from torchxrayvision.utils import normalize
 
 class ModifiedNIH_Dataset(NIH_Dataset):
-    def __init__(self, imgpaths, *args, **kwargs):
+    def __init__(self, imgpaths, logger = None, *args, **kwargs):
         self.imgpaths = imgpaths  # Set imgpaths attribute before calling super
-
+        self.logger = logger
         if 'imgpath' not in kwargs:
             kwargs['imgpath'] = imgpaths[0] if imgpaths else None
 
@@ -38,14 +37,19 @@ class ModifiedNIH_Dataset(NIH_Dataset):
                 break
 
         img = imread(full_img_path)
-        sample["img"] = normalize(img, maxval=255, reshape=True)
+        # Convert grayscale to RGB by replicating the single channel
+        if img.ndim == 2:  # Grayscale image
+            img = np.repeat(img[:, :, np.newaxis], 3, axis=2)  # Shape becomes [H, W, 3]
 
+        # Ensure img is a PyTorch tensor in the format [C, H, W]
+        sample["img"] = torch.from_numpy(img).permute(2, 0, 1).numpy()  # Convert to [3, H, W]
+        
         if self.pathology_masks:
             sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
 
         sample = apply_transforms(sample, self.transform)
         sample = apply_transforms(sample, self.data_aug)
-        
+        self.logger.info(f'Shape of img {sample["img"].shape}')
         return sample
     
     def __len__(self):
