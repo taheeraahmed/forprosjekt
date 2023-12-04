@@ -34,7 +34,7 @@ class TrainingModuleMultiClass:
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.model_output_folder = model_output_folder
 
-        self.best_val_accuracy = 0.0
+        self.best_val_f1 = 0.0
 
         # TensorBoard Writer
         self.writer = SummaryWriter(log_dir)
@@ -59,7 +59,7 @@ class TrainingModuleMultiClass:
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_val_accuracy': self.best_val_accuracy
+            'best_val_f1': self.best_val_f1
         }
         torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
         self.logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
@@ -79,6 +79,7 @@ class TrainingModuleMultiClass:
 
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
+            self.optimizer.zero_grad()
             # Forward pass through the model
             outputs = self.model(batch["img"])
             logits = outputs.logits
@@ -118,12 +119,12 @@ class TrainingModuleMultiClass:
 
         # Calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
-        avg_train_accuracy = train_correct_predictions / train_total_predictions
+        train_f1 = f1_score(targets_binary, outputs_binary, average='macro')  # or 'micro', or 'weighted'
 
-        self.logger.info(f'Epoch {epoch+1} - train loss: {avg_train_loss}, train accuracy: {avg_train_accuracy} ')
+        self.logger.info(f'Epoch {epoch+1} - train loss: {avg_train_loss}, f1: {train_f1} ')
         # Log metrics to TensorBoard
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
-        self.writer.add_scalar('Accuracy/Train', avg_train_accuracy, epoch)
+        self.writer.add_scalar('F1/Train', train_f1, epoch)
 
         # Calculate and log per-class metrics for training
         for cls_name in self.classnames:
@@ -173,16 +174,16 @@ class TrainingModuleMultiClass:
 
         # Calculate average metrics for validation
         avg_val_loss = val_loss / len(validation_dataloader)
-        avg_val_accuracy = val_correct_predictions / val_total_predictions
+        val_f1 = f1_score(targets_binary, outputs_binary, average='macro')  
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
-        self.writer.add_scalar('Accuracy/Validation', avg_val_accuracy, epoch)
+        self.writer.add_scalar('F1/Validation', val_f1, epoch)
 
-        self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation accuracy: {avg_val_accuracy}')
+        self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation f1: {val_f1}')
         
-        current_val_accuracy = avg_val_accuracy
-        if current_val_accuracy > self.best_val_accuracy:
-            self.best_val_accuracy = current_val_accuracy
-            self._save_checkpoint(epoch, current_val_accuracy)
+        current_val_f1 = val_f1
+        if current_val_f1 > self.best_val_f1:
+            self.best_val_f1 = current_val_f1
+            self._save_checkpoint(epoch, current_val_f1)
 
         for cls_name in self.classnames:
             avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
@@ -267,14 +268,14 @@ class TrainingModuleBinaryClass:
         current_val_accuracy = self.val_accuracy[-1]
         if current_val_accuracy > self.best_val_accuracy:
             self.save_checkpoint(epoch, current_val_accuracy)
-            self.best_val_accuracy = current_val_accuracy
+            self.best_val_f1 = current_val_accuracy
 
     def save_checkpoint(self, epoch, current_val_accuracy):
         checkpoint = {
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_val_accuracy': self.best_val_accuracy
+            'best_val_f1': self.best_val_f1
         }
         torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
         self.logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
