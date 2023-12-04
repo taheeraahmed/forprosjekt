@@ -109,6 +109,7 @@ def train(args):
         logger.info('Started training')
         trainer = TrainingModuleMultiClass(
             model = model, 
+            model_output_folder = model_output_folder, 
             logger = logger, 
             log_dir=f'runs/{args.output_folder}'
         )

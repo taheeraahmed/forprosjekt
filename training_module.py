@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 
 class TrainingModuleMultiClass:
-    def __init__(self, model, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
+    def __init__(self, model, model_output_folder, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
         # Initialize the model
         self.model = model
         self.logger = logger
@@ -32,6 +32,7 @@ class TrainingModuleMultiClass:
         #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
         self.criterion = nn.CrossEntropyLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.model_output_folder = model_output_folder
 
         self.best_val_accuracy = 0.0
 
