@@ -62,7 +62,7 @@ class TrainingModuleMultiClass:
             'best_val_f1': self.best_val_f1
         }
         torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
-        self.logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
+        self.logger.info(f'Checkpoint saved for epoch {epoch+1} with f1 score: {current_val_accuracy}')
 
     def _train_epoch(self, train_dataloader, epoch):
         self.model.train()
@@ -115,13 +115,13 @@ class TrainingModuleMultiClass:
 
             if i % 2 == 0:
                 img_grid = torchvision.utils.make_grid(batch["img"])
-                self.writer.add_image('four_xray_images', img_grid)
+                self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
         # Calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
         train_f1 = f1_score(targets_binary, outputs_binary, average='macro')  # or 'micro', or 'weighted'
 
-        self.logger.info(f'Epoch {epoch+1} - train loss: {avg_train_loss}, f1: {train_f1} ')
+        self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, f1: {train_f1} ')
         # Log metrics to TensorBoard
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
         self.writer.add_scalar('F1/Train', train_f1, epoch)
@@ -178,7 +178,7 @@ class TrainingModuleMultiClass:
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
         self.writer.add_scalar('F1/Validation', val_f1, epoch)
 
-        self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation f1: {val_f1}')
+        self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, f1: {val_f1}')
         
         current_val_f1 = val_f1
         if current_val_f1 > self.best_val_f1:

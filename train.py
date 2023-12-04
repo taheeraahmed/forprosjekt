@@ -53,6 +53,7 @@ def train(args):
         
         trainer = TrainingModuleMultiClass(
             model = model,
+            model_output_folder = model_output_folder, 
             logger = logger,
             log_dir = f'runs/{args.output_folder}'
         )
