@@ -1,17 +1,24 @@
 import os
-import pandas as pd
 from PIL import Image
 import torch
 from skimage.io import imread
+import numpy as np
+import PIL.Image as Image
+from torch import Tensor
 
 from torch.utils.data import Dataset
-from utils.get_images_list import get_images_list
 from torchxrayvision.datasets import NIH_Dataset, apply_transforms
 from torchxrayvision.utils import normalize
-
+from torchvision import transforms
+import torchvision
+import torchxrayvision as xrv
+import sys
 class ModifiedNIH_Dataset(NIH_Dataset):
-    def __init__(self, imgpaths, *args, **kwargs):
+    def __init__(self, imgpaths, transforms, logger = None, model_arg=None, *args, **kwargs):
         self.imgpaths = imgpaths  # Set imgpaths attribute before calling super
+        self.logger = logger
+        self.transforms = transforms
+        self.model_arg = model_arg
 
         if 'imgpath' not in kwargs:
             kwargs['imgpath'] = imgpaths[0] if imgpaths else None
@@ -36,17 +43,51 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             full_img_path = os.path.join(img_path, imgid)
             if os.path.exists(full_img_path):
                 break
-
-        img = imread(full_img_path)
-        sample["img"] = normalize(img, maxval=255, reshape=True)
-
-        if self.pathology_masks:
-            sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
-
-        sample = apply_transforms(sample, self.transform)
-        sample = apply_transforms(sample, self.data_aug)
+        # TODO FIX
         
-        return sample
+
+        if self.model_arg=="densenet-pretrained-xray-multi-class":
+            img = imread(full_img_path)
+            sample["img"] = normalize(img, maxval=255, reshape=True)
+
+            if self.pathology_masks:
+                sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
+
+            sample = apply_transforms(sample, self.transform)
+            sample = apply_transforms(sample, self.data_aug)
+            
+            return sample
+
+        elif self.model_arg=="vit-imagenet-multi-class":
+            img = Image.open(full_img_path).convert('RGB') 
+            debug_transforms = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ]) 
+            img_transformed = debug_transforms(img)
+
+            if img_transformed.shape != (3,224,224):
+                raise ValueError(f"Unexpected size {img.shapee}") 
+            sample = {"img": img_transformed, "lab": self.labels[idx]}
+            
+            if self.pathology_masks:
+                sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
+
+            img = sample['img']
+            if type(img) != Tensor:
+                raise TypeError(f"Unexpected type {type(img)}") 
+            return sample
+            
+        else:
+            self.logger.error('Invalid moodel_arg')
+            sys.exit(1)
+
+        
+    
+    def __len__(self):
+        return super(ModifiedNIH_Dataset, self).__len__()
 
 class ChestXrayDataset(Dataset):
     def __init__(self, df, transform=None):

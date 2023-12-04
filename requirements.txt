@@ -13,3 +13,4 @@ pyfiglet
 ipykernel
 monai
 torch-tb-profiler
+transformers

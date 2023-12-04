@@ -33,7 +33,7 @@ def set_up(args):
                     logging.StreamHandler()
                 ])
     logger = logging.getLogger()
-
+    logger.info(f'Running: {args.model}')
     logger.info(f'Root directory of project: {project_root}')
     check_gpu(logger)
     logger.info('Set-up completed')

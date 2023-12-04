@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 
 class TrainingModuleMultiClass:
-    def __init__(self, model, logger, step_size=5, gamma=0.1, log_dir='runs'):
+    def __init__(self, model, model_output_folder, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
         # Initialize the model
         self.model = model
         self.logger = logger
@@ -28,30 +28,43 @@ class TrainingModuleMultiClass:
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
 
         # Optimizer and loss function
-        self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
+        self.criterion = nn.CrossEntropyLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.model_output_folder = model_output_folder
+
+        self.best_val_f1 = 0.0
 
         # TensorBoard Writer
         self.writer = SummaryWriter(log_dir)
 
-    def train(self, train_dataloader, validation_dataloader, num_epochs, idun_datetime_done):
+    def train(self, train_dataloader, validation_dataloader, num_epochs, idun_datetime_done, model_arg):
         for epoch in range(num_epochs):
             epoch_start_time = time.time() 
             self.logger.info(f'Started epoch {epoch+1}')
             
-            self._train_epoch(train_dataloader, epoch)
-            self._validate_epoch(validation_dataloader, epoch)
+            self._train_epoch(train_dataloader, epoch, model_arg)
+            self._validate_epoch(validation_dataloader, epoch, model_arg)
             self.scheduler.step()
 
             epoch_end_time = time.time()  # End time of the current epoch
             epoch_duration = epoch_end_time - epoch_start_time
-            # Compare IDUN time with completion time and log
             calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, self.logger)
 
         self.writer.close()
 
-    def _train_epoch(self, train_dataloader, epoch):
+    def _save_checkpoint(self, epoch, current_val_accuracy):
+        checkpoint = {
+            'epoch': epoch + 1,
+            'state_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'best_val_f1': self.best_val_f1
+        }
+        torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
+        self.logger.info(f'Checkpoint saved for epoch {epoch+1} with f1 score: {current_val_accuracy}')
+
+    def _train_epoch(self, train_dataloader, epoch, model_arg):
         self.model.train()
 
         # Variables to store metrics for training
@@ -66,9 +79,17 @@ class TrainingModuleMultiClass:
 
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
+            self.optimizer.zero_grad()
+            # Forward pass through the model
             outputs = self.model(batch["img"])
-            targets = batch["lab"][:, :, None].squeeze(-1)
-            loss = self.criterion(outputs, targets)
+            if model_arg == 'densenet-pretrained-xray-multi-class':
+                logits = outputs = self.model(batch["img"])
+            else:
+                logits = outputs.logits
+            targets = batch["lab"]
+
+            # Compute loss
+            loss = self.criterion(logits, targets)
             
             # Perform backward pass and optimization
             loss.backward()
@@ -78,13 +99,13 @@ class TrainingModuleMultiClass:
             # Accumulate training loss
             train_loss += loss.item()
 
-            # Convert outputs and targets to binary format for each class
-            outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+            # Convert outputs (logits) and targets to binary format for each class
+            outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
             targets_binary = targets.cpu().numpy()
 
             # Calculate per-class metrics
             for cls_idx, cls_name in enumerate(self.classnames):
-                cls_loss = self.criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
                 train_class_losses[cls_name] += cls_loss
 
                 cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
@@ -97,16 +118,16 @@ class TrainingModuleMultiClass:
 
             if i % 2 == 0:
                 img_grid = torchvision.utils.make_grid(batch["img"])
-                self.writer.add_image('four_xray_images', img_grid)
+                self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
         # Calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
-        avg_train_accuracy = train_correct_predictions / train_total_predictions
+        train_f1 = f1_score(targets_binary, outputs_binary, average='macro')  # or 'micro', or 'weighted'
 
-        self.logger.info(f'Epoch {epoch+1} - train loss: {avg_train_loss}, train accuracy: {avg_train_accuracy} ')
+        self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, f1: {train_f1} ')
         # Log metrics to TensorBoard
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
-        self.writer.add_scalar('Accuracy/Train', avg_train_accuracy, epoch)
+        self.writer.add_scalar('F1/Train', train_f1, epoch)
 
         # Calculate and log per-class metrics for training
         for cls_name in self.classnames:
@@ -115,7 +136,7 @@ class TrainingModuleMultiClass:
             self.writer.add_scalar(f'Train/Loss/{cls_name}', avg_cls_loss, epoch)
             self.writer.add_scalar(f'Train/Accuracy/{cls_name}', cls_accuracy, epoch)
             
-    def _validate_epoch(self, validation_dataloader, epoch):
+    def _validate_epoch(self, validation_dataloader, epoch, model_arg):
         # Validation loop
         self.model.eval()
         val_loss = 0.0
@@ -131,18 +152,23 @@ class TrainingModuleMultiClass:
             val_loop = tqdm(validation_dataloader, leave=True)
             for i, batch in enumerate(val_loop):
                 outputs = self.model(batch["img"])
-                targets = batch["lab"][:, :, None].squeeze(-1)
-                loss = self.criterion(outputs, targets)
+                # Need to make it fit for the transformer and densenet--- Hacky :) 
+                if model_arg == 'densenet-pretrained-xray-multi-class':
+                    logits = outputs = self.model(batch["img"])
+                else:
+                    logits = outputs.logits
+                targets = batch["lab"]
+                loss = self.criterion(logits, targets)
 
                 # Accumulate validation loss
                 val_loss += loss.item()
 
-                outputs_binary = (torch.sigmoid(outputs) > 0.5).cpu().numpy()
+                outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
                 targets_binary = targets.cpu().numpy()
 
                 # Calculate per-class metrics
                 for cls_idx, cls_name in enumerate(self.classnames):
-                    cls_loss = self.criterion(outputs[:, cls_idx], targets[:, cls_idx]).item()
+                    cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
                     val_class_losses[cls_name] += cls_loss
 
                     cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
@@ -155,17 +181,23 @@ class TrainingModuleMultiClass:
 
         # Calculate average metrics for validation
         avg_val_loss = val_loss / len(validation_dataloader)
-        avg_val_accuracy = val_correct_predictions / val_total_predictions
+        val_f1 = f1_score(targets_binary, outputs_binary, average='macro')  
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
-        self.writer.add_scalar('Accuracy/Validation', avg_val_accuracy, epoch)
+        self.writer.add_scalar('F1/Validation', val_f1, epoch)
 
-        self.logger.info(f'Epoch {epoch+1} - validation loss: {avg_val_loss}, validation accuracy: {avg_val_accuracy}')
+        self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, f1: {val_f1}')
+        
+        current_val_f1 = val_f1
+        if current_val_f1 > self.best_val_f1:
+            self.best_val_f1 = current_val_f1
+            self._save_checkpoint(epoch, current_val_f1)
 
         for cls_name in self.classnames:
             avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
             cls_accuracy = val_class_correct[cls_name] / val_class_total[cls_name]
             self.writer.add_scalar(f'Validation/Loss/{cls_name}', avg_cls_loss, epoch)
             self.writer.add_scalar(f'Validation/Accuracy/{cls_name}', cls_accuracy, epoch)
+
 class TrainingModuleBinaryClass:
     def __init__(self, model, args, logger, model_output_folder, output_folder, idun_time_done):
         self.model = model
@@ -243,13 +275,14 @@ class TrainingModuleBinaryClass:
         current_val_accuracy = self.val_accuracy[-1]
         if current_val_accuracy > self.best_val_accuracy:
             self.save_checkpoint(epoch, current_val_accuracy)
+            self.best_val_f1 = current_val_accuracy
 
     def save_checkpoint(self, epoch, current_val_accuracy):
         checkpoint = {
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_val_accuracy': self.best_val_accuracy
+            'best_val_f1': self.best_val_f1
         }
         torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
         self.logger.info(f'Checkpoint saved for epoch {epoch+1} with validation accuracy: {current_val_accuracy}')
