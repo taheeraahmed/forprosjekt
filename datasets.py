@@ -3,15 +3,18 @@ from PIL import Image
 import torch
 from skimage.io import imread
 import numpy as np
+import PIL.Image as Image
 
 from torch.utils.data import Dataset
 from utils.get_images_list import get_images_list
-from torchxrayvision.datasets import NIH_Dataset, apply_transforms
-
+from torchxrayvision.datasets import NIH_Dataset
+from torchvision import transforms
 class ModifiedNIH_Dataset(NIH_Dataset):
-    def __init__(self, imgpaths, logger = None, *args, **kwargs):
+    def __init__(self, imgpaths, transforms, logger = None, *args, **kwargs):
         self.imgpaths = imgpaths  # Set imgpaths attribute before calling super
         self.logger = logger
+        self.transforms = transforms
+
         if 'imgpath' not in kwargs:
             kwargs['imgpath'] = imgpaths[0] if imgpaths else None
 
@@ -35,21 +38,24 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             full_img_path = os.path.join(img_path, imgid)
             if os.path.exists(full_img_path):
                 break
+        
+        img = Image.open(full_img_path).convert('L')  
+        if self.transform:
+            img = self.transform(img)
 
-        img = imread(full_img_path)
-        # Convert grayscale to RGB by replicating the single channel
-        if img.ndim == 2:  # Grayscale image
-            img = np.repeat(img[:, :, np.newaxis], 3, axis=2)  # Shape becomes [H, W, 3]
+        # Convert grayscale to RGB
+        img = img.convert('RGB')
 
-        # Ensure img is a PyTorch tensor in the format [C, H, W]
-        sample["img"] = torch.from_numpy(img).permute(2, 0, 1).numpy()  # Convert to [3, H, W]
+        # Convert image to PyTorch tensor
+        img_tensor = transforms.ToTensor()(img)
+
+        self.logger.info(f'Shape of img {img_tensor.shape}')
+
+        sample = {"img": img_tensor, "lab": self.labels[idx]}
         
         if self.pathology_masks:
             sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
 
-        sample = apply_transforms(sample, self.transform)
-        sample = apply_transforms(sample, self.data_aug)
-        self.logger.info(f'Shape of img {sample["img"].shape}')
         return sample
     
     def __len__(self):

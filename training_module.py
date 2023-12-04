@@ -79,6 +79,7 @@ class TrainingModuleMultiClass:
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
             outputs = self.model(batch["img"])
+            self.logger.info(f'batch["img"] {type(batch["img"])}')
             targets = batch["lab"][:, :, None].squeeze(-1)
             loss = self.criterion(outputs, targets)
             

@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, random_split, Subset
-import torchxrayvision as xrv
 import torchvision
+from torchvision import transforms
 from datasets import ModifiedNIH_Dataset, ChestXrayDataset
 import math
 from sklearn.model_selection import train_test_split
@@ -16,7 +16,12 @@ class MultiClassDataLoader:
         self.batch_size = batch_size
         self.logger = logger
         self.train_frac = train_frac
-        self.transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(), xrv.datasets.XRayResizer(224)])
+        self.transforms = transforms.Compose([
+            transforms.CenterCrop(10), 
+            transforms.Resize((224, 224)), 
+            transforms.ConvertImageDtype(torch.float),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
 
     def list_directories(self):
         return [os.path.join(self.data_path, d, 'images') for d in os.listdir(self.data_path) if os.path.isdir(os.path.join(self.data_path, d))]
@@ -24,7 +29,7 @@ class MultiClassDataLoader:
     def get_dataloaders(self):
         nih_img_dirs = self.list_directories()
         self.logger.info(f'Data directories: {nih_img_dirs}')
-        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transform=self.transform, logger=self.logger)
+        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transforms=self.transforms, logger=self.logger)
 
         if len(dataset) == 0:
             self.logger.error('The dataset is empty.')
