@@ -3,40 +3,34 @@ import torch.nn as nn
 import torch.optim as optim
 from utils.plot_stuff import plot_metrics
 from torch.utils.tensorboard import SummaryWriter
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from tqdm import tqdm
-import numpy as np
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 import time
 from utils.set_up import calculate_idun_time_left
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import torchvision
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+torch.backends.cudnn.benchmark = True
 
 class TrainingModuleMultiClass:
     def __init__(self, model, model_output_folder, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
-        # Initialize the model
         self.model = model
         self.logger = logger
         self.classnames = ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 
                'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
 
-        # Optimizer and loss function
+        # optimizer and loss function
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
         self.criterion = nn.CrossEntropyLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.model_output_folder = model_output_folder
 
+        # for checkpointing
         self.best_val_f1 = 0.0
 
-        # Moving model to device if cuda available
+        # moving model to device if cuda available
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
             self.model.to(self.device)
@@ -44,7 +38,7 @@ class TrainingModuleMultiClass:
             self.device = torch.device("cpu")
             self.logger.warning('GPU not available')
 
-        # TensorBoard Writer
+        # TensorBoard writer
         self.writer = SummaryWriter(log_dir)
 
     def train(self, train_dataloader, validation_dataloader, num_epochs, idun_datetime_done, model_arg):
@@ -75,12 +69,14 @@ class TrainingModuleMultiClass:
     def _train_epoch(self, train_dataloader, epoch, model_arg):
         self.model.train()
 
-        # Variables to store metrics for training
+        # vars to store metrics for training
         train_loss = 0.0
         train_correct_predictions = 0
         train_total_predictions = 0
+        train_outputs = []
+        train_targets = []
 
-        # Initialize per-class metrics storage for training
+        # init per-class metrics storage for training
         train_class_losses = {classname: 0.0 for classname in self.classnames}
         train_class_correct = {classname: 0 for classname in self.classnames}
         train_class_total = {classname: 0 for classname in self.classnames}
@@ -89,7 +85,8 @@ class TrainingModuleMultiClass:
         for i, batch in enumerate(train_loop):
             inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
             self.optimizer.zero_grad()
-            # Forward pass through the model
+            
+            # forward pass
             outputs = self.model(inputs)
             if model_arg == 'densenet-pretrained-xray-multi-class':
                 logits = outputs = self.model(inputs)
@@ -97,19 +94,23 @@ class TrainingModuleMultiClass:
                 logits = outputs.logits
             targets = labels
 
-            # Compute loss
+            # compute loss
             loss = self.criterion(logits, targets)
             
-            # Perform backward pass and optimization
+            # backward pass and optimization
             loss.backward()
             self.optimizer.step()
 
-            # Accumulate training loss
+            # accumulate training loss
             train_loss += loss.item()
 
-            # Convert outputs (logits) and targets to binary format for each class
+            # convert outputs (logits) and targets to binary format for each class
             outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
             targets_binary = targets.cpu().numpy()
+
+            # appending for roc-auc
+            train_outputs.append(outputs_binary)
+            train_targets.append(targets_binary)
 
             # Calculate per-class metrics
             for cls_idx, cls_name in enumerate(self.classnames):
@@ -128,18 +129,29 @@ class TrainingModuleMultiClass:
                 img_grid = torchvision.utils.make_grid(inputs)
                 self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
-        # Calculate average metrics for training
+        # calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
         train_f1 = f1_score(targets_binary, outputs_binary, average='weighted')
         train_accuracy = train_correct_predictions / train_total_predictions
+        
 
-        # Log training metrics
-        self.logger.info(f'[Train] Epoch {epoch+1} - Loss: {avg_train_loss}, F1: {train_f1}, Accuracy: {train_accuracy}')
+        # log training metrics
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
         self.writer.add_scalar('F1/Train', train_f1, epoch)
         self.writer.add_scalar('Accuracy/Train', train_accuracy, epoch)
 
-        # Calculate and log per-class metrics for training
+        # calculate AUC
+        try:
+            train_outputs = np.vstack(train_outputs)
+            train_targets = np.vstack(train_targets)
+            train_auc = roc_auc_score(train_targets, train_outputs, average='macro')  # or 'micro'
+            self.writer.add_scalar('AUC/Train', train_auc, epoch)
+            self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, F1: {train_f1}, auc: {train_auc}, accuracy: {train_accuracy}')
+        except ValueError as e:
+            self.logger.warning(f'Unable to calculate train AUC for epoch {epoch+1}: {e}')
+            self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, F1: {train_f1}, accuracy: {train_accuracy}')
+
+        # calculate and log per-class metrics for training
         for cls_name in self.classnames:
             avg_cls_loss = train_class_losses[cls_name] / len(train_dataloader)
             cls_accuracy = train_class_correct[cls_name] / train_class_total[cls_name]
@@ -147,13 +159,16 @@ class TrainingModuleMultiClass:
             self.writer.add_scalar(f'Train/Accuracy/{cls_name}', cls_accuracy, epoch)
             
     def _validate_epoch(self, validation_dataloader, epoch, model_arg):
-        # Validation loop
         self.model.eval()
+        
+        # vars to store metrics
         val_loss = 0.0
         val_correct_predictions = 0
         val_total_predictions = 0
+        val_outputs = []
+        val_targets = []
 
-        # Initialize per-class metrics storage for validation
+        # init per-class metrics storage for validation
         val_class_losses = {classname: 0.0 for classname in self.classnames}
         val_class_correct = {classname: 0 for classname in self.classnames}
         val_class_total = {classname: 0 for classname in self.classnames}
@@ -171,13 +186,13 @@ class TrainingModuleMultiClass:
                 targets = labels
                 loss = self.criterion(logits, targets)
 
-                # Accumulate validation loss
+                # accumulate validation loss
                 val_loss += loss.item()
 
                 outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
                 targets_binary = targets.cpu().numpy()
 
-                # Calculate per-class metrics
+                # calculate per-class metrics
                 for cls_idx, cls_name in enumerate(self.classnames):
                     cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
                     val_class_losses[cls_name] += cls_loss
@@ -186,20 +201,35 @@ class TrainingModuleMultiClass:
                     val_class_correct[cls_name] += cls_correct_predictions
                     val_class_total[cls_name] += targets_binary.shape[0]
 
-                # Calculate and accumulate accuracy and F1 score
+                # calculate and accumulate accuracy, auc and F1 score
                 val_correct_predictions += np.sum(outputs_binary == targets_binary)
                 val_total_predictions += targets_binary.size
-
-        # Calculate average metrics for validation
+                val_outputs.append(outputs_binary)
+                val_targets.append(targets_binary)
+        
+        
+        # calculate average metrics for validation
         avg_val_loss = val_loss / len(validation_dataloader)
         val_f1 = f1_score(targets_binary, outputs_binary, average='macro')  
         val_accuracy = val_correct_predictions / val_total_predictions
+
+        # write to tensorboard
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
         self.writer.add_scalar('F1/Validation', val_f1, epoch)
         self.writer.add_scalar('Accuracy/Train', val_accuracy, epoch)
 
-        self.logger.info(f'[Train] Epoch {epoch+1} - Loss: {avg_val_loss}, F1: {val_f1}, Accuracy: {val_accuracy}')
+        # log and check if possible to calculate AUC
+        try:
+            val_outputs = np.vstack(val_outputs)
+            val_targets = np.vstack(val_targets)
+            val_auc = roc_auc_score(val_targets, val_outputs, average='macro')  # or 'micro'
+            self.writer.add_scalar('AUC/Validation', val_auc, epoch)
+            self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, F1: {val_f1}, auc: {val_auc}, accuracy: {val_accuracy}')
+        except ValueError as e:
+            self.logger.warning(f'Unable to calculate validation AUC for epoch {epoch+1}: {e}')
+            self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, F1: {val_f1}, accuracy: {val_accuracy}')
         
+        # checkpointing
         current_val_f1 = val_f1
         if current_val_f1 > self.best_val_f1:
             self.best_val_f1 = current_val_f1
