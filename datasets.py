@@ -53,7 +53,9 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             if self.pathology_masks:
                 sample["pathology_masks"] = self.get_mask_dict(imgid, sample["img"].shape[2])
 
-            sample = apply_transforms(sample, self.transform)
+            # applying transforms
+            transform = torchvision.transforms.Compose([xrv.datasets.XRayCenterCrop(),xrv.datasets.XRayResizer(224)])
+            sample = apply_transforms(sample, transform)
             sample = apply_transforms(sample, self.data_aug)
             
             return sample
