@@ -1,21 +1,22 @@
 #!/bin/bash
 TEST_MODE=false
 
-BATCH_SIZE=16
+BATCH_SIZE=32
 LEARNING_RATE=0.001
 NUM_EPOCHS=20
 
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-IDUN_TIME=120:00:00
+IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
-MODEL=densenet-pretrained-xray-multi-class
+MODEL=vit-imagenet-multi-class-imbalance
 
-# model_choices=(
-#     'densenet-pretrained-xray-multi-class'
-#     'densenet-pretrained-imagenet-binary-class'
-#     'vit-imagenet-multi-class'
-# )
+# densenet-pretrained-imagenet-binary-class
+# densenet-pretrained-xray-multi-class
+# densenet-pretrained-xray-multi-class-imbalance
+# vit-imagenet-multi-class
+# vit-imagenet-multi-class-imbalance
+
 
 JOB_NAME=${MODEL}
 if [ "$TEST_MODE" = true ]; then
