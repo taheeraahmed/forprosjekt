@@ -88,7 +88,7 @@ class TrainingModuleMultiClass:
             
             # forward pass
             outputs = self.model(inputs)
-            if model_arg == 'densenet-pretrained-xray-multi-class':
+            if model_arg == 'densenet-pretrained-xray-multi-class' or 'densenet-pretrained-xray-multi-class-imbalance':
                 logits = outputs = self.model(inputs)
             else:
                 logits = outputs.logits

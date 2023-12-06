@@ -164,7 +164,43 @@ def train(args):
             model_arg = model_arg
         )
     elif model_arg == 'densenet-pretrained-xray-multi-class-imbalance':
-        pass
+        
+        model = xrv.models.get_model(weights="densenet121-res224-nih")
+        model.op_threshs = None 
+        model.classifier = torch.nn.Linear(1024,14) 
+
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.CenterCrop(224),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485], std=[0.229]),
+        ])
+
+        shuffle = True   # Shuffle data each epoch
+        num_workers = 4  # Number of subprocesses for data loading
+        train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+
+        train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
+
+        val_dataset = ChestXrayMutiClassDataset(dataframe=val_df, transform=transform)
+        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
+
+        logger.info('Started training')
+        trainer = TrainingModuleMultiClass(
+            model = model, 
+            model_output_folder = model_output_folder, 
+            logger = logger, 
+            log_dir=f'runs/{args.output_folder}'
+        )
+        trainer.train(
+            train_dataloader = train_dataloader, 
+            validation_dataloader = val_dataloader,
+            num_epochs = args.num_epochs,
+            idun_datetime_done = idun_datetime_done,
+            model_arg = model_arg
+        )
     else: 
         logger.error('Invalid model argument')
         sys.exit(1)
