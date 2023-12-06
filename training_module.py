@@ -287,7 +287,7 @@ class TrainingModuleBinaryClass:
         train_preds_binary = np.round(train_preds)  # Adjust this based on your use case
 
         # Calculate metrics
-        self.train_f1.append(f1_score(train_targets, train_preds_binary, average='weighted'))
+        self.train_f1.append(f1_score(train_targets, train_preds_binary, average='macro'))
         self.train_accuracy.append(accuracy_score(train_targets, train_preds_binary))
 
     def _validate_epoch(self, val_dataloader, epoch):
