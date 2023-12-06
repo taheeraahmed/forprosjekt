@@ -36,6 +36,14 @@ class TrainingModuleMultiClass:
 
         self.best_val_f1 = 0.0
 
+        # Moving model to device if cuda available
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+            self.model.to(self.device)
+        else:
+            self.device = torch.device("cpu")
+            self.logger.warning('GPU not available')
+
         # TensorBoard Writer
         self.writer = SummaryWriter(log_dir)
 
@@ -48,7 +56,7 @@ class TrainingModuleMultiClass:
             self._validate_epoch(validation_dataloader, epoch, model_arg)
             self.scheduler.step()
 
-            epoch_end_time = time.time()  # End time of the current epoch
+            epoch_end_time = time.time()
             epoch_duration = epoch_end_time - epoch_start_time
             calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, self.logger)
 
@@ -79,14 +87,15 @@ class TrainingModuleMultiClass:
 
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
+            inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
             self.optimizer.zero_grad()
             # Forward pass through the model
-            outputs = self.model(batch["img"])
+            outputs = self.model(inputs)
             if model_arg == 'densenet-pretrained-xray-multi-class':
-                logits = outputs = self.model(batch["img"])
+                logits = outputs = self.model(inputs)
             else:
                 logits = outputs.logits
-            targets = batch["lab"]
+            targets = labels
 
             # Compute loss
             loss = self.criterion(logits, targets)
@@ -94,7 +103,6 @@ class TrainingModuleMultiClass:
             # Perform backward pass and optimization
             loss.backward()
             self.optimizer.step()
-            self.optimizer.zero_grad()
 
             # Accumulate training loss
             train_loss += loss.item()
@@ -112,22 +120,24 @@ class TrainingModuleMultiClass:
                 train_class_correct[cls_name] += cls_correct_predictions
                 train_class_total[cls_name] += targets_binary.shape[0]
 
-            # Calculate and accumulate accuracy and F1 score
+            # Calculate and accumulate accuracy
             train_correct_predictions += np.sum(outputs_binary == targets_binary)
             train_total_predictions += targets_binary.size
 
             if i % 2 == 0:
-                img_grid = torchvision.utils.make_grid(batch["img"])
+                img_grid = torchvision.utils.make_grid(inputs)
                 self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
         # Calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
-        train_f1 = f1_score(targets_binary, outputs_binary, average='macro')  # or 'micro', or 'weighted'
+        train_f1 = f1_score(targets_binary, outputs_binary, average='weighted')
+        train_accuracy = train_correct_predictions / train_total_predictions
 
-        self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, f1: {train_f1} ')
-        # Log metrics to TensorBoard
+        # Log training metrics
+        self.logger.info(f'[Train] Epoch {epoch+1} - Loss: {avg_train_loss}, F1: {train_f1}, Accuracy: {train_accuracy}')
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
         self.writer.add_scalar('F1/Train', train_f1, epoch)
+        self.writer.add_scalar('Accuracy/Train', train_accuracy, epoch)
 
         # Calculate and log per-class metrics for training
         for cls_name in self.classnames:
@@ -151,13 +161,14 @@ class TrainingModuleMultiClass:
         with torch.no_grad():
             val_loop = tqdm(validation_dataloader, leave=True)
             for i, batch in enumerate(val_loop):
-                outputs = self.model(batch["img"])
+                inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
+                outputs = self.model(inputs)
                 # Need to make it fit for the transformer and densenet--- Hacky :) 
                 if model_arg == 'densenet-pretrained-xray-multi-class':
-                    logits = outputs = self.model(batch["img"])
+                    logits = outputs = self.model(inputs)
                 else:
                     logits = outputs.logits
-                targets = batch["lab"]
+                targets = labels
                 loss = self.criterion(logits, targets)
 
                 # Accumulate validation loss
@@ -182,10 +193,12 @@ class TrainingModuleMultiClass:
         # Calculate average metrics for validation
         avg_val_loss = val_loss / len(validation_dataloader)
         val_f1 = f1_score(targets_binary, outputs_binary, average='macro')  
+        val_accuracy = val_correct_predictions / val_total_predictions
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
         self.writer.add_scalar('F1/Validation', val_f1, epoch)
+        self.writer.add_scalar('Accuracy/Train', val_accuracy, epoch)
 
-        self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, f1: {val_f1}')
+        self.logger.info(f'[Train] Epoch {epoch+1} - Loss: {avg_val_loss}, F1: {val_f1}, Accuracy: {val_accuracy}')
         
         current_val_f1 = val_f1
         if current_val_f1 > self.best_val_f1:
