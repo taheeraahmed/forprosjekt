@@ -11,6 +11,11 @@ IDUN_TIME=120:00:00
 CURRENT_PATH=$(pwd)
 MODEL=densenet-pretrained-xray-multi-class
 
+# model_choices=(
+#     'densenet-pretrained-xray-multi-class'
+#     'densenet-pretrained-imagenet-binary-class'
+#     'vit-imagenet-multi-class'
+# )
 
 JOB_NAME=${MODEL}
 if [ "$TEST_MODE" = true ]; then
