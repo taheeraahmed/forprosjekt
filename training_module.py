@@ -13,7 +13,7 @@ from tqdm import tqdm
 torch.backends.cudnn.benchmark = True
 
 class TrainingModuleMultiClass:
-    def __init__(self, model, model_output_folder, logger, step_size=5, gamma=0.1, log_dir='runs', lr=0.001):
+    def __init__(self, model, model_output_folder, logger, optimizer, log_dir='runs', lr=0.001, criterion=nn.CrossEntropyLoss):
         self.model = model
         self.logger = logger
         self.classnames = ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 
@@ -21,10 +21,9 @@ class TrainingModuleMultiClass:
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
 
         # optimizer and loss function
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-        #self.optimizer = torch.optim.Adam(self.model.classifier.parameters())
-        self.criterion = nn.CrossEntropyLoss()
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.optimizer = optimizer
+        self.criterion = criterion
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
         self.model_output_folder = model_output_folder
 
         # for checkpointing
@@ -131,7 +130,7 @@ class TrainingModuleMultiClass:
 
         # calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
-        train_f1 = f1_score(targets_binary, outputs_binary, average='weighted')
+        train_f1 = f1_score(targets_binary, outputs_binary, average='macro')
         train_accuracy = train_correct_predictions / train_total_predictions
         
 
@@ -179,7 +178,7 @@ class TrainingModuleMultiClass:
                 inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
                 outputs = self.model(inputs)
                 # Need to make it fit for the transformer and densenet--- Hacky :) 
-                if model_arg == 'densenet-pretrained-xray-multi-class':
+                if model_arg == 'densenet-pretrained-xray-multi-class' or 'densenet-pretrained-xray-multi-class-imbalance':
                     logits = outputs = self.model(inputs)
                 else:
                     logits = outputs.logits
@@ -222,7 +221,7 @@ class TrainingModuleMultiClass:
         try:
             val_outputs = np.vstack(val_outputs)
             val_targets = np.vstack(val_targets)
-            val_auc = roc_auc_score(val_targets, val_outputs, average='macro')  # or 'micro'
+            val_auc = roc_auc_score(val_targets, val_outputs, average='macro')
             self.writer.add_scalar('AUC/Validation', val_auc, epoch)
             self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, F1: {val_f1}, auc: {val_auc}, accuracy: {val_accuracy}')
         except ValueError as e:
@@ -349,4 +348,4 @@ class TrainingModuleBinaryClass:
 
         plot_metrics(train_arr=self.train_losses, val_arr=self.val_losses, output_folder=self.output_folder, logger=self.logger, type='loss')
         plot_metrics(train_arr=self.train_f1, val_arr=self.val_f1, output_folder=self.output_folder, logger=self.logger, type='f1')
-        plot_metrics(train_arr=self.train_accuracy, val_arr=self.val_accuracy, output_folder=self.output_folder, logger=self.logger, type='accuracy')
+        plot_metrics(train_arr=self.train_accuracy, val_arr=self.val_accuracy, output_folder=self.output_folder, logger=self.logger, type='accuracy')                                                                                                                                                          

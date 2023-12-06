@@ -2,7 +2,7 @@ from utils.set_up import set_up, str_to_bool
 from dataloaders import MultiClassDataLoader, BinaryClassificationDataLoader
 from datasets import ChestXrayMutiClassDataset
 from models import DenseNetBinaryClassifier
-from utils.handle_class_imbalance import handle_class_imbalance_df
+from utils.handle_class_imbalance import handle_class_imbalance_df, get_class_weights
 from training_module import TrainingModuleBinaryClass, TrainingModuleMultiClass
 import argparse
 import sys
@@ -54,12 +54,14 @@ def train(args):
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None 
         model.classifier = torch.nn.Linear(1024,14) 
-        
+        optimizer = torch.optim.Adam(model.classifier.parameters())
+
         trainer = TrainingModuleMultiClass(
             model = model,
             model_output_folder = model_output_folder, 
             logger = logger,
-            log_dir = f'runs/{args.output_folder}'
+            log_dir = f'runs/{args.output_folder}',
+            optimizer = optimizer, 
         )
         logger.info('Started training')
         trainer.train(
@@ -102,6 +104,8 @@ def train(args):
         model.classifier = torch.nn.Linear(model.classifier.in_features, 14)
         feature_extractor = ViTFeatureExtractor.from_pretrained("google/vit-base-patch16-224")
 
+        optimizer=torch.optim.Adam(model.parameters(), args.learning_rate)
+
         dataloaders = MultiClassDataLoader(
             data_path= data_path, 
             test_mode = test_mode, 
@@ -118,7 +122,8 @@ def train(args):
             model = model, 
             model_output_folder = model_output_folder, 
             logger = logger, 
-            log_dir=f'runs/{args.output_folder}'
+            log_dir=f'runs/{args.output_folder}',
+            optimizer=optimizer,
         )
         trainer.train(
             train_dataloader = train_dataloader, 
@@ -143,6 +148,10 @@ def train(args):
         num_workers = 4  # Number of subprocesses for data loading
         train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
 
+        class_weights = get_class_weights(train_df)
+        criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float))
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+
         train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
         train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
 
@@ -154,7 +163,9 @@ def train(args):
             model = model, 
             model_output_folder = model_output_folder, 
             logger = logger, 
-            log_dir=f'runs/{args.output_folder}'
+            log_dir=f'runs/{args.output_folder}',
+            optimizer=optimizer,
+            criterion=criterion,
         )
         trainer.train(
             train_dataloader = train_dataloader, 
@@ -164,10 +175,10 @@ def train(args):
             model_arg = model_arg
         )
     elif model_arg == 'densenet-pretrained-xray-multi-class-imbalance':
-        
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None 
         model.classifier = torch.nn.Linear(1024,14) 
+
 
         transform = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -180,6 +191,10 @@ def train(args):
         shuffle = True   # Shuffle data each epoch
         num_workers = 4  # Number of subprocesses for data loading
         train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+        class_weights = get_class_weights(train_df)
+
+        criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float))
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
         train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
         train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
@@ -192,7 +207,9 @@ def train(args):
             model = model, 
             model_output_folder = model_output_folder, 
             logger = logger, 
-            log_dir=f'runs/{args.output_folder}'
+            log_dir=f'runs/{args.output_folder}',
+            criterion = criterion,
+            optimizer = optimizer
         )
         trainer.train(
             train_dataloader = train_dataloader, 
