@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, random_split, Subset
 import torchvision
 from torchvision import transforms
-from datasets import ModifiedNIH_Dataset, ChestXrayDataset
+from datasets import ModifiedNIH_Dataset, ChestXrayDatasetBinaryClass
 import math
 from sklearn.model_selection import train_test_split
 from utils.get_images_list import get_images_list
@@ -139,8 +139,8 @@ class BinaryClassificationDataLoader:
     def get_dataloaders(self):
         train_df, val_df = self._prepare_dataframes()
 
-        train_dataset = ChestXrayDataset(df=train_df, transform=self.transform)
-        val_dataset = ChestXrayDataset(df=val_df, transform=self.transform)
+        train_dataset = ChestXrayDatasetBinaryClass(df=train_df, transform=self.transform)
+        val_dataset = ChestXrayDatasetBinaryClass(df=val_df, transform=self.transform)
 
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)

@@ -91,7 +91,7 @@ class ModifiedNIH_Dataset(NIH_Dataset):
     def __len__(self):
         return super(ModifiedNIH_Dataset, self).__len__()
 
-class ChestXrayDataset(Dataset):
+class ChestXrayDatasetBinaryClass(Dataset):
     def __init__(self, df, transform=None):
         """
         Args:
