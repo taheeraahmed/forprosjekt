@@ -5,7 +5,6 @@ import PIL.Image as Image
 
 from torch.utils.data import Dataset
 
-
 class ChestXrayDatasetBinaryClass(Dataset):
     def __init__(self, df, transform=None):
         """

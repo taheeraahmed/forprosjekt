@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 import torchvision
-from datasets.binary import ChestXrayDatasetBinaryClass
+from datasets.binary_class import ChestXrayDatasetBinaryClass
 import math
 from sklearn.model_selection import train_test_split
 from utils.get_images_list import get_images_list
@@ -24,10 +24,9 @@ class BinaryClassificationDataLoader:
         ])
 
     def _get_binary_classification_df(self, logger):
-        df = pd.read_csv(f'{self.data_path}/Data_Entry_2017.csv')
         # Add the image paths to the dataframe
+        df = pd.read_csv(f'{self.data_path}/Data_Entry_2017.csv')       
         df['Image Files List'] = get_images_list(logger)
-        # Create a new dataframe to store the image paths, labels, and patient IDs
         df = df[['Image Files List', 'Finding Labels', 'Patient ID']]
 
         # Make a list of all the labels
@@ -35,8 +34,6 @@ class BinaryClassificationDataLoader:
                     'Fibrosis', 'Hernia', 'Infiltration', 'Mass', 'Nodule', 'Pleural_Thickening',
                     'Pneumonia', 'Pneumothorax']
 
-        # For each label, make a new column and
-        # assign 1 if the disease is present and 0 if the disease is absent
         for disease in diseases:
             df[disease] = df['Finding Labels'].apply(lambda x: 1 if disease in x else 0)
             

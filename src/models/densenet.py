@@ -24,21 +24,20 @@ def densenet(logger, args, idun_datetime_done, data_path):
             transforms.CenterCrop(224),
             transforms.Grayscale(num_output_channels=1),  # Convert image to grayscale
             transforms.ToTensor(),
-            # Normalize using mean and std suitable for grayscale images
             transforms.Normalize(mean=[0.485], std=[0.229]),
         ])
 
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None 
         model.classifier = torch.nn.Linear(1024,14) 
-        # Only training classifier
+        # only training classifier
         optimizer = torch.optim.Adam(model.classifier.parameters())
 
         train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
         if args.test_mode:
                 logger.warning('Using smaller dataset')
-                train_subset_size = 100  # Adjust as needed
-                val_subset_size = 50  # Adjust as needed
+                train_subset_size = 100 
+                val_subset_size = 50
 
                 train_df = train_df.head(train_subset_size)
                 val_df = val_df.head(val_subset_size)
