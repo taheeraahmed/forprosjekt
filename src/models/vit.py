@@ -6,7 +6,6 @@ from torchvision import transforms
 from transformers import ViTForImageClassification, ViTFeatureExtractor
 
 from datasets import ChestXrayMutiClassDataset
-from dataloaders import MultiClassDataLoader
 from trainers.trainer_multi_class import TrainerMultiClass
 from utils.handle_class_imbalance import handle_class_imbalance_df, get_class_weights
 
@@ -27,61 +26,39 @@ def vit(logger, args, idun_datetime_done, data_path):
 
     shuffle = True  
     num_workers = 4  
+
+    train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+    if args.test_mode:
+        logger.warning('Using smaller dataset')
+        train_subset_size = 100  # Adjust as needed
+        val_subset_size = 50  # Adjust as needed
+
+        train_df = train_df.head(train_subset_size)
+        val_df = val_df.head(val_subset_size)
+
+    train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
+
+    val_dataset = ChestXrayMutiClassDataset(dataframe=val_df, transform=transform)
+    validation_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
     
     if args.class_imbalance:
-        train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
         class_weights = get_class_weights(train_df)
+    else:
+        class_weights = None
 
-        if args.test_mode:
-            logger.warning('Using smaller dataset')
-            train_subset_size = 100  # Adjust as needed
-            val_subset_size = 50  # Adjust as needed
-
-            train_df = train_df.head(train_subset_size)
-            val_df = val_df.head(val_subset_size)
-
-        train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
-        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
-
-        val_dataset = ChestXrayMutiClassDataset(dataframe=val_df, transform=transform)
-        validation_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
-
-        trainer = TrainerMultiClass(
-            model = model,
-            class_weights=class_weights,
-            model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
-            logger = logger,
-            log_dir = f'runs/{args.output_folder}',
-            optimizer = optimizer, 
-        )
-        trainer.train(
-            train_dataloader = train_dataloader,
-            validation_dataloader = validation_dataloader,
-            num_epochs = args.num_epochs,
-            idun_datetime_done = idun_datetime_done,
-            model_arg = args.model
-        )
-    else: 
-        dataloaders = MultiClassDataLoader(
-            data_path= data_path, 
-            test_mode = args.test_mode, 
-            batch_size = args.batch_size, 
-            logger = logger, 
-            model_arg = args.model,
-        )
-        train_dataloader, val_dataloader = dataloaders.get_dataloaders()
-        
-        trainer = TrainerMultiClass(
-            model = model, 
-            model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
-            logger = logger, 
-            log_dir=f'runs/{args.output_folder}',
-            optimizer=optimizer,
-        )
-        trainer.train(
-            train_dataloader = train_dataloader, 
-            validation_dataloader = val_dataloader,
-            num_epochs = args.num_epochs,
-            idun_datetime_done = idun_datetime_done,
-            model_arg = args.model
-        )
+    trainer = TrainerMultiClass(
+        model = model,
+        class_weights=class_weights,
+        model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
+        logger = logger,
+        log_dir = f'runs/{args.output_folder}',
+        optimizer = optimizer, 
+    )
+    trainer.train(
+        train_dataloader = train_dataloader,
+        validation_dataloader = validation_dataloader,
+        num_epochs = args.num_epochs,
+        idun_datetime_done = idun_datetime_done,
+        model_arg = args.model
+    )

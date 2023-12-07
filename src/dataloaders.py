@@ -1,70 +1,12 @@
 import torch
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader
 import torchvision
-from torchvision import transforms
-from datasets import ModifiedNIH_Dataset, ChestXrayDatasetBinaryClass
+from datasets import ChestXrayDatasetBinaryClass
 import math
 from sklearn.model_selection import train_test_split
 from utils.get_images_list import get_images_list
 import os
 import pandas as pd
-
-class MultiClassDataLoader:
-    def __init__(self, data_path, test_mode, model_arg, batch_size, logger, train_frac=0.8):
-        self.data_path = data_path
-        self.test_mode = test_mode
-        self.batch_size = batch_size
-        self.model_arg = model_arg
-        self.logger = logger
-        self.train_frac = train_frac
-        # TODO: These aren't passed forward to ModifiedNIH_Dataset BUG :))
-        self.transforms = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
-
-    def list_directories(self):
-        return [os.path.join(self.data_path, d, 'images') for d in os.listdir(self.data_path) if os.path.isdir(os.path.join(self.data_path, d))]
-
-    def get_dataloaders(self):
-        nih_img_dirs = self.list_directories()
-        self.logger.info(f'Data directories: {nih_img_dirs}')
-        dataset = ModifiedNIH_Dataset(imgpaths=nih_img_dirs, transforms=self.transforms, logger=self.logger, model_arg=self.model_arg)
-
-        if len(dataset) == 0:
-            self.logger.error('The dataset is empty.')
-            raise ValueError("The dataset is empty. Please check your data source.")
-
-        if self.test_mode:
-            self.logger.warning('Using a subset of the dataset for testing')
-            subset_size = 100
-            indices = torch.randperm(len(dataset)).tolist()
-            test_mode_subset_indices = indices[:subset_size]
-            test_mode_subset_dataset = Subset(dataset, test_mode_subset_indices)
-
-            # Adjust the sizes for splitting the subset
-            test_size = int(0.8 * subset_size)  # 20% of the subset size
-            validation_size = subset_size - test_size  # Rest of the subset for validation
-            if validation_size <= 0:
-                raise ValueError("Validation set has no data. Adjust the sizes.")
-
-            test_dataset, validation_dataset = random_split(test_mode_subset_dataset, [test_size, validation_size])
-
-            train_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
-            validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
-
-        else:
-            train_size = int(self.train_frac * len(dataset))
-            validation_size = len(dataset) - train_size
-            train_dataset, validation_dataset = random_split(dataset, [train_size, validation_size])
-
-            train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-            validation_dataloader = DataLoader(validation_dataset, batch_size=self.batch_size, shuffle=False)
-
-        return train_dataloader, validation_dataloader
-
 class BinaryClassificationDataLoader:
     def __init__(self, data_path, test_mode, batch_size, logger, test_size=0.2, train_frac=0.25):
         self.data_path = data_path

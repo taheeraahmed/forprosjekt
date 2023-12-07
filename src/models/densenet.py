@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torchvision import models
 import torch
-from dataloaders import MultiClassDataLoader, BinaryClassificationDataLoader
+from dataloaders import BinaryClassificationDataLoader
 from trainers.trainer_multi_class import TrainerMultiClass
 from trainers.trainer_binary_class import TrainingModuleBinaryClass
 import torch
@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import torchxrayvision as xrv
 from datasets import ChestXrayMutiClassDataset
-from dataloaders import MultiClassDataLoader
 from trainers.trainer_multi_class import TrainerMultiClass
 from utils.handle_class_imbalance import handle_class_imbalance_df, get_class_weights
 
@@ -35,12 +34,8 @@ def densenet(logger, args, idun_datetime_done, data_path):
         # Only training classifier
         optimizer = torch.optim.Adam(model.classifier.parameters())
 
-        if args.class_imbalance:
-            logger.info('Handling class imbalance')
-            train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
-            class_weights = get_class_weights(train_df)
-
-            if args.test_mode:
+        train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+        if args.test_mode:
                 logger.warning('Using smaller dataset')
                 train_subset_size = 100  # Adjust as needed
                 val_subset_size = 50  # Adjust as needed
@@ -48,52 +43,33 @@ def densenet(logger, args, idun_datetime_done, data_path):
                 train_df = train_df.head(train_subset_size)
                 val_df = val_df.head(val_subset_size)
 
-            train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
-            train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
+        train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
+        train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
 
-            val_dataset = ChestXrayMutiClassDataset(dataframe=val_df, transform=transform)
-            validation_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
+        val_dataset = ChestXrayMutiClassDataset(dataframe=val_df, transform=transform)
+        validation_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
 
-            trainer = TrainerMultiClass(
-                model = model,
-                class_weights=class_weights,
-                model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
-                logger = logger,
-                log_dir = f'runs/{args.output_folder}',
-                optimizer = optimizer, 
-            )
-            trainer.train(
-                train_dataloader = train_dataloader,
-                validation_dataloader = validation_dataloader,
-                num_epochs = args.num_epochs,
-                idun_datetime_done = idun_datetime_done,
-                model_arg = args.model
-            )
+        if args.class_imbalance:
+            logger.info('Handling class imbalance')
+            class_weights = get_class_weights(train_df)
         else:
-            dataloaders = MultiClassDataLoader(
-                data_path = data_path, 
-                test_mode = args.test_mode, 
-                batch_size = args.batch_size, 
-                logger = logger, 
-                model_arg = args.model,
-            )
-            train_dataloader, validation_dataloader = dataloaders.get_dataloaders()
+            class_weights = None
 
-            trainer = TrainerMultiClass(
-                model = model,
-                model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
-                logger = logger,
-                log_dir = f'runs/{args.output_folder}',
-                optimizer = optimizer, 
-            )
-            trainer.train(
-                train_dataloader = train_dataloader,
-                validation_dataloader = validation_dataloader,
-                num_epochs = args.num_epochs,
-                idun_datetime_done = idun_datetime_done,
-                model_arg = args.model
-            )
-
+        trainer = TrainerMultiClass(
+            model = model,
+            class_weights=class_weights,
+            model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
+            logger = logger,
+            log_dir = f'runs/{args.output_folder}',
+            optimizer = optimizer, 
+        )
+        trainer.train(
+            train_dataloader = train_dataloader,
+            validation_dataloader = validation_dataloader,
+            num_epochs = args.num_epochs,
+            idun_datetime_done = idun_datetime_done,
+            model_arg = args.model
+        )
     elif args.task == 'binary':
         dataloaders = BinaryClassificationDataLoader(
             data_path = data_path, 
