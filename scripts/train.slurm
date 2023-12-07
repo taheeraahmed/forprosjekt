@@ -15,7 +15,7 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python train.py \
+python $CODE_PATH/src/train.py \
   --test_mode $TEST_MODE \
   --output_folder $OUTPUT_FOLDER \
   --idun_time $IDUN_TIME \
