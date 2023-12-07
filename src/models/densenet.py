@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torchvision import models
 import torch
-from dataloaders import BinaryClassificationDataLoader
+from src.dataloader import BinaryClassificationDataLoader
 from trainers.trainer_multi_class import TrainerMultiClass
 from trainers.trainer_binary_class import TrainingModuleBinaryClass
 import torch
