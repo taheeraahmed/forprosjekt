@@ -84,6 +84,10 @@ class TrainerMultiClass:
         train_outputs = []
         train_targets = []
 
+        # storage for class-wise metrics
+        train_class_f1 = {cls_name: [] for cls_name in self.classnames}
+        train_class_auc = {cls_name: [] for cls_name in self.classnames}
+
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
             inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
@@ -121,14 +125,32 @@ class TrainerMultiClass:
                 img_grid = torchvision.utils.make_grid(inputs)
                 self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
+        
         # concatenate all outputs and targets
         train_outputs = np.vstack(train_outputs)
         train_targets = np.vstack(train_targets)
+
+        # calculate class-wise F1 and AUC
+        for cls_idx, cls_name in enumerate(self.classnames):
+            cls_f1 = f1_score(train_targets[:, cls_idx], train_outputs[:, cls_idx])
+            train_class_f1[cls_name].append(cls_f1)
+
+            try:
+                cls_auc = roc_auc_score(train_targets[:, cls_idx], train_outputs[:, cls_idx])
+                train_class_auc[cls_name].append(cls_auc)
+            except ValueError:
+                self.logger.warning(f'Error calculating AUC for class {cls_name}')
 
         # calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
         train_f1 = f1_score(train_targets, train_outputs, average='macro')
         train_accuracy = np.mean(train_targets == train_outputs)
+
+        # log class-wise metrics
+        for cls_name in self.classnames:
+            self.writer.add_scalar(f'F1_classes//Train/{cls_name}', np.mean(train_class_f1[cls_name]), epoch)
+            if train_class_auc[cls_name]:
+                self.writer.add_scalar(f'AUC_classes/Train/{cls_name}', np.mean(train_class_auc[cls_name]), epoch)
         
         # log training metrics
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
@@ -153,6 +175,10 @@ class TrainerMultiClass:
         val_total_predictions = 0
         val_outputs = []
         val_targets = []
+
+        # storage for class-wise metrics
+        val_class_f1 = {cls_name: [] for cls_name in self.classnames}
+        val_class_auc = {cls_name: [] for cls_name in self.classnames}
 
         with torch.no_grad():
             val_loop = tqdm(validation_dataloader, leave=True)
@@ -179,22 +205,38 @@ class TrainerMultiClass:
                 val_total_predictions += targets_binary.size
                 val_outputs.append(outputs_binary)
                 val_targets.append(targets_binary)
+
+        # concatenate all outputs and targets
+        val_outputs = np.vstack(val_outputs)
+        val_targets = np.vstack(val_targets)
         
-        
+        # class-wise f1 and auc
+        for cls_idx, cls_name in enumerate(self.classnames):
+            cls_f1 = f1_score(val_targets[:, cls_idx], val_outputs[:, cls_idx])
+            val_class_f1[cls_name].append(cls_f1)
+
+            try:
+                cls_auc = roc_auc_score(val_targets[:, cls_idx], val_outputs[:, cls_idx])
+                val_class_auc[cls_name].append(cls_auc)
+            except ValueError:
+                self.logger.warning(f'Error calculating AUC for class {cls_name}')
+
         # calculate average metrics for validation
         avg_val_loss = val_loss / len(validation_dataloader)
         val_f1 = f1_score(targets_binary, outputs_binary, average='macro')  
         val_accuracy = val_correct_predictions / val_total_predictions
 
         # write to tensorboard
+        for cls_name in self.classnames:
+            self.writer.add_scalar(f'F1_classes/Validation/{cls_name}', np.mean(val_class_f1[cls_name]), epoch)
+            if val_class_auc[cls_name]:
+                self.writer.add_scalar(f'AUC_classes/Validation/{cls_name}', np.mean(val_class_auc[cls_name]), epoch)
         self.writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
         self.writer.add_scalar('F1/Validation', val_f1, epoch)
         self.writer.add_scalar('Accuracy/Train', val_accuracy, epoch)
 
         # log and check if possible to calculate AUC
         try:
-            val_outputs = np.vstack(val_outputs)
-            val_targets = np.vstack(val_targets)
             val_auc = roc_auc_score(val_targets, val_outputs, average='macro')
             self.writer.add_scalar('AUC/Validation', val_auc, epoch)
             self.logger.info(f'[Validation] Epoch {epoch+1} - loss: {avg_val_loss}, F1: {val_f1}, auc: {val_auc}, accuracy: {val_accuracy}')

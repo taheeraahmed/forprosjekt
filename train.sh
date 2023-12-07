@@ -1,5 +1,5 @@
 #!/bin/bash
-TEST_MODE=true
+TEST_MODE=false
 
 MODELS=("vit" "densenet")
 TASKS=("multi-class")
@@ -7,13 +7,14 @@ CLASS_IMBALANCES=("true" "false")
 
 BATCH_SIZE=32
 LEARNING_RATE=0.001
-NUM_EPOCHS=20
+NUM_EPOCHS=25
+
+IDUN_TIME=90:00:00
 
 #    ======= DO NOT EDIT THIS SCRIPT =======
 
 DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
-IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
 
 for MODEL in "${MODELS[@]}"; do
@@ -37,7 +38,7 @@ for MODEL in "${MODELS[@]}"; do
                 JOB_NAME="${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
             fi
 
-            OUTPUT_FOLDER=${DATE}-${JOB_NAME}
+            OUTPUT_FOLDER=${JOB_NAME}
 
             mkdir -p /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/model_checkpoints
             echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
