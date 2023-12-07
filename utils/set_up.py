@@ -12,10 +12,8 @@ def set_up(args):
 
     idun_time = args.idun_time
     output_folder = 'output/'+args.output_folder
-    model_output_folder = output_folder+'/models'
 
-
-    result = pyfiglet.figlet_format("Thoracic disease detection", font = "slant")  
+    result = pyfiglet.figlet_format("Forprosjekt B)", font = "slant")  
     print(result) 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -46,7 +44,7 @@ def set_up(args):
     except:
         logger.info('Didnt get IDUN time')
 
-    return logger, idun_datetime_done, output_folder, model_output_folder
+    return logger, idun_datetime_done, output_folder
 
 def calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_done, logger):
     remaining_epochs = num_epochs - (epoch + 1)

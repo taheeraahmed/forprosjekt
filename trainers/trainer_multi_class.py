@@ -11,22 +11,15 @@ from tqdm import tqdm
 torch.backends.cudnn.benchmark = True
 
 class TrainerMultiClass:
-    def __init__(self, model, model_output_folder, logger, optimizer, log_dir='runs', lr=0.001, criterion=nn.CrossEntropyLoss):
+    def __init__(self, model, model_output_folder, logger, optimizer, log_dir='runs', class_weights=None):
         self.model = model
+        self.model_output_folder = model_output_folder
         self.logger = logger
+        self.optimizer = optimizer
         self.classnames = ['Atelectasis', 'Consolidation', 'Infiltration', 'Pneumothorax', 
                'Edema', 'Emphysema', 'Fibrosis', 'Effusion', 'Pneumonia', 
                'Pleural_Thickening', 'Cardiomegaly', 'Nodule', 'Mass', 'Hernia']
-
-        # optimizer and loss function
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
-        self.model_output_folder = model_output_folder
-
-        # for checkpointing
-        self.best_val_f1 = 0.0
-
+        
         # moving model to device if cuda available
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
@@ -34,6 +27,16 @@ class TrainerMultiClass:
         else:
             self.device = torch.device("cpu")
             self.logger.warning('GPU not available')
+
+        if class_weights is not None:
+            class_weights = class_weights.to(self.device)
+            self.criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
+        else:
+            self.criterion = nn.CrossEntropyLoss
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
+
+        # for checkpointing
+        self.best_val_f1 = 0.0
 
         # TensorBoard writer
         self.writer = SummaryWriter(log_dir)
@@ -85,11 +88,13 @@ class TrainerMultiClass:
             
             # forward pass
             outputs = self.model(inputs)
-            if model_arg == 'densenet-pretrained-xray-multi-class' or 'densenet-pretrained-xray-multi-class-imbalance':
-                logits = outputs = self.model(inputs)
-            else:
-                logits = outputs.logits
-            targets = labels
+            logits = outputs if model_arg == 'densenet' else outputs.logits
+            logits = logits.to(self.device)  # Ensure logits are on the correct device
+            targets = labels.to(self.device)  # Ensure targets are on the correct device
+
+            self.logger.info(f"Inputs device: {inputs.device}")
+            self.logger.info(f"Labels device: {targets.device}")
+            self.logger.info(f"Logits device: {logits.device}")
 
             # compute loss
             loss = self.criterion(logits, targets)
@@ -109,14 +114,14 @@ class TrainerMultiClass:
             train_outputs.append(outputs_binary)
             train_targets.append(targets_binary)
 
-            # Calculate per-class metrics
-            for cls_idx, cls_name in enumerate(self.classnames):
-                cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
-                train_class_losses[cls_name] += cls_loss
+            # # Calculate per-class metrics
+            # for cls_idx, cls_name in enumerate(self.classnames):
+            #     cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
+            #     train_class_losses[cls_name] += cls_loss
 
-                cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
-                train_class_correct[cls_name] += cls_correct_predictions
-                train_class_total[cls_name] += targets_binary.shape[0]
+            #     cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
+            #     train_class_correct[cls_name] += cls_correct_predictions
+            #     train_class_total[cls_name] += targets_binary.shape[0]
 
             # Calculate and accumulate accuracy
             train_correct_predictions += np.sum(outputs_binary == targets_binary)
@@ -126,12 +131,15 @@ class TrainerMultiClass:
                 img_grid = torchvision.utils.make_grid(inputs)
                 self.writer.add_image(f'Epoch {epoch}/four_xray_images', img_grid)
 
+        # concatenate all outputs and targets
+        train_outputs = np.vstack(train_outputs)
+        train_targets = np.vstack(train_targets)
+
         # calculate average metrics for training
         avg_train_loss = train_loss / len(train_dataloader)
-        train_f1 = f1_score(targets_binary, outputs_binary, average='macro')
-        train_accuracy = train_correct_predictions / train_total_predictions
+        train_f1 = f1_score(train_targets, train_outputs, average='macro')
+        train_accuracy = np.mean(train_targets == train_outputs)
         
-
         # log training metrics
         self.writer.add_scalar('Loss/Train', avg_train_loss, epoch)
         self.writer.add_scalar('F1/Train', train_f1, epoch)
@@ -139,9 +147,7 @@ class TrainerMultiClass:
 
         # calculate AUC
         try:
-            train_outputs = np.vstack(train_outputs)
-            train_targets = np.vstack(train_targets)
-            train_auc = roc_auc_score(train_targets, train_outputs, average='macro')  # or 'micro'
+            train_auc = roc_auc_score(train_targets, train_outputs, average='macro')
             self.writer.add_scalar('AUC/Train', train_auc, epoch)
             self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, F1: {train_f1}, auc: {train_auc}, accuracy: {train_accuracy}')
         except ValueError as e:
@@ -174,13 +180,14 @@ class TrainerMultiClass:
             val_loop = tqdm(validation_dataloader, leave=True)
             for i, batch in enumerate(val_loop):
                 inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
+
+                # forward pass
                 outputs = self.model(inputs)
-                # Need to make it fit for the transformer and densenet--- Hacky :) 
-                if model_arg == 'densenet-pretrained-xray-multi-class' or 'densenet-pretrained-xray-multi-class-imbalance':
-                    logits = outputs = self.model(inputs)
-                else:
-                    logits = outputs.logits
-                targets = labels
+                logits = outputs if model_arg == 'densenet' else outputs.logits
+                logits = logits.to(self.device)  # Ensure logits are on the correct device
+                targets = labels.to(self.device)  # Ensure targets are on the correct device
+
+                #criterion
                 loss = self.criterion(logits, targets)
 
                 # accumulate validation loss

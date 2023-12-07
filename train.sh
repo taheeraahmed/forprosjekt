@@ -1,5 +1,9 @@
 #!/bin/bash
-TEST_MODE=false
+TEST_MODE=true
+
+MODEL=densenet        #vit, densenet
+TASK=multi-class      #multi-class
+CLASS_IMBALANCE=false 
 
 BATCH_SIZE=32
 LEARNING_RATE=0.001
@@ -9,7 +13,6 @@ DATE=$(date "+%Y-%m-%d-%H:%M:%S")
 USER=$(whoami)
 IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
-MODEL=vit-imagenet-multi-class-imbalance
 
 # densenet-pretrained-imagenet-binary-class
 # densenet-pretrained-xray-multi-class
@@ -18,7 +21,7 @@ MODEL=vit-imagenet-multi-class-imbalance
 # vit-imagenet-multi-class-imbalance
 
 
-JOB_NAME=${MODEL}
+JOB_NAME=${DATE}-${MODEL}-${TASK}
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
     IDUN_TIME=00:15:00
@@ -26,6 +29,9 @@ fi
 
 if [ "$TEST_MODE" = false ]; then
     JOB_NAME="${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
+    if [ "$CLASS_IMBALANCE" = true ]; then
+      JOB_NAME="${JOB_NAME}-imbalance"
+    fi
 fi
 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
@@ -47,11 +53,11 @@ rsync -av \
   --exclude='images' \
   --exclude='runs' \
   --exclude='notebooks' \
-  --exclude='scripts' \
   --exclude='output' \
   --exclude='.git' \
   --exclude='__pycache__' \
   --exclude='utils/__pycache__' \
+  --exclude='trainers/__pycache__' \
   --exclude='mlruns/' \
   /cluster/home/$USER/code/forprosjekt/ $CODE_PATH
 
@@ -71,5 +77,5 @@ sbatch --partition=GPUQ \
   --gres=gpu:1 \
   --job-name=$JOB_NAME \
   --output=$OUTPUT_FILE \
-  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME,MODEL=$MODEL,BATCH_SIZE=$BATCH_SIZE,LEARNING_RATE=$LEARNING_RATE,NUM_EPOCHS=$NUM_EPOCHS \
+  --export=TEST_MODE=$TEST_MODE,OUTPUT_FOLDER=$OUTPUT_FOLDER,IDUN_TIME=$IDUN_TIME,MODEL=$MODEL,BATCH_SIZE=$BATCH_SIZE,LEARNING_RATE=$LEARNING_RATE,NUM_EPOCHS=$NUM_EPOCHS,TASK=$TASK,CLASS_IMBALANCE=$CLASS_IMBALANCE \
   $CODE_PATH/train.slurm

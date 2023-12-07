@@ -15,6 +15,16 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python train.py -t $TEST_MODE -of $OUTPUT_FOLDER -it $IDUN_TIME -m $MODEL -bs $BATCH_SIZE -lr $LEARNING_RATE -e $NUM_EPOCHS
+python train.py \
+  --test_mode $TEST_MODE \
+  --output_folder $OUTPUT_FOLDER \
+  --idun_time $IDUN_TIME \
+  --model $MODEL \
+  --batch_size $BATCH_SIZE \
+  --learning_rate $LEARNING_RATE \
+  --num_epochs $NUM_EPOCHS \
+  --class_imbalance $CLASS_IMBALANCE \
+  --task $TASK
+
 
 echo " --- Done running train.py ---"

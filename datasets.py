@@ -43,10 +43,8 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             full_img_path = os.path.join(img_path, imgid)
             if os.path.exists(full_img_path):
                 break
-        # TODO FIX
-        
-
-        if self.model_arg=="densenet-pretrained-xray-multi-class":
+        # TODO Add handling of binary?
+        if self.model_arg=="densenet":
             img = imread(full_img_path)
             sample["img"] = normalize(img, maxval=255, reshape=True)
 
@@ -60,7 +58,7 @@ class ModifiedNIH_Dataset(NIH_Dataset):
             
             return sample
 
-        elif self.model_arg=="vit-imagenet-multi-class":
+        elif self.model_arg=="vit":
             img = Image.open(full_img_path).convert('RGB') 
             debug_transforms = transforms.Compose([
                 transforms.Resize((224, 224)),
