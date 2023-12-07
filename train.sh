@@ -40,7 +40,9 @@ for MODEL in "${MODELS[@]}"; do
 
             OUTPUT_FOLDER=${JOB_NAME}
 
-            mkdir -p /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/model_checkpoints
+            mkdir -p /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/model_checkpoints # Stores logs and checkpoints
+            mkdir -p /cluster/home/taheeraa/code/forprosjekt/runs/$OUTPUT_FOLDER                     # Stores tensorboard info
+
             echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
             OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/idun_out.out"
             echo "Current OUTPUT_FOLDER is: $OUTPUT_FOLDER"
