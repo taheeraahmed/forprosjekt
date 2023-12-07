@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 import torchvision
-from datasets import ChestXrayDatasetBinaryClass
+from datasets.binary import ChestXrayDatasetBinaryClass
 import math
 from sklearn.model_selection import train_test_split
 from utils.get_images_list import get_images_list
