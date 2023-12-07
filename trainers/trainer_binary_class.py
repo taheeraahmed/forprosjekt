@@ -8,7 +8,6 @@ from utils.set_up import calculate_idun_time_left
 import numpy as np
 from tqdm import tqdm
 
-
 class TrainingModuleBinaryClass:
     def __init__(self, model, args, logger, model_output_folder, output_folder, idun_time_done):
         self.model = model

@@ -36,11 +36,16 @@ def densenet(logger, args, idun_datetime_done, data_path):
 
         if args.class_imbalance:
             logger.info('Handling class imbalance')
-            logger.info(f'{type(args.class_imbalance)}')
-            logger.info(f'{args.class_imbalance}')
             train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
             class_weights = get_class_weights(train_df)
             optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+
+            if args.test_mode:
+                train_subset_size = 100  # Adjust as needed
+                val_subset_size = 50  # Adjust as needed
+
+                train_df = train_df.head(train_subset_size)
+                val_df = val_df.head(val_subset_size)
 
             train_dataset = ChestXrayMutiClassDataset(dataframe=train_df, transform=transform)
             train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)

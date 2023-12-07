@@ -58,7 +58,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.test_mode = str_to_bool(args.test_mode)
     args.class_imbalance = str_to_bool(args.class_imbalance)
-
-    print(args.class_imbalance)
-    print(type(args.class_imbalance))
     train(args)

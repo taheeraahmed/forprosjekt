@@ -1,9 +1,9 @@
 #!/bin/bash
 TEST_MODE=true
 
-MODEL=densenet        #vit, densenet
+MODEL=vit        #vit, densenet
 TASK=multi-class      #multi-class
-CLASS_IMBALANCE=false 
+CLASS_IMBALANCE=true 
 
 BATCH_SIZE=32
 LEARNING_RATE=0.001
@@ -24,11 +24,12 @@ if [ "$TEST_MODE" = true ]; then
     NUM_EPOCHS=2
 fi
 
+if [ "$CLASS_IMBALANCE" = true ]; then
+    JOB_NAME="${JOB_NAME}-imbalance"
+fi
+
 if [ "$TEST_MODE" = false ]; then
     JOB_NAME="${JOB_NAME}-e$NUM_EPOCHS-bs$BATCH_SIZE-lr$LEARNING_RATE-t$IDUN_TIME"
-    if [ "$CLASS_IMBALANCE" = true ]; then
-      JOB_NAME="${JOB_NAME}-imbalance"
-    fi
 fi
 
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
