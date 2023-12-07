@@ -7,6 +7,7 @@ from utils.set_up import calculate_idun_time_left
 import torchvision
 import numpy as np
 from tqdm import tqdm
+import os
 
 torch.backends.cudnn.benchmark = True
 
@@ -65,7 +66,12 @@ class TrainerMultiClass:
             'optimizer': self.optimizer.state_dict(),
             'best_val_f1': self.best_val_f1
         }
-        torch.save(checkpoint, f'{self.model_output_folder}/model_checkpoint_epoch_{epoch+1}.pt')
+
+        if not os.path.exists(self.model_output_folder):
+            os.makedirs(self.model_output_folder)
+
+        checkpoint_path = os.path.join(self.model_output_folder, f'model_checkpoint_epoch_{epoch+1}.pt')
+        torch.save(checkpoint, checkpoint_path)
         self.logger.info(f'Checkpoint saved for epoch {epoch+1} with f1 score: {current_val_accuracy}')
 
     def _train_epoch(self, train_dataloader, epoch, model_arg):
@@ -88,10 +94,6 @@ class TrainerMultiClass:
             logits = outputs if model_arg == 'densenet' else outputs.logits
             logits = logits.to(self.device)  # Ensure logits are on the correct device
             targets = labels.to(self.device)  # Ensure targets are on the correct device
-
-            self.logger.info(f"Inputs device: {inputs.device}")
-            self.logger.info(f"Labels device: {targets.device}")
-            self.logger.info(f"Logits device: {logits.device}")
 
             # compute loss
             loss = self.criterion(logits, targets)

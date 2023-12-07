@@ -14,17 +14,14 @@ USER=$(whoami)
 IDUN_TIME=90:00:00
 CURRENT_PATH=$(pwd)
 
-# densenet-pretrained-imagenet-binary-class
-# densenet-pretrained-xray-multi-class
-# densenet-pretrained-xray-multi-class-imbalance
-# vit-imagenet-multi-class
-# vit-imagenet-multi-class-imbalance
-
 
 JOB_NAME=${DATE}-${MODEL}-${TASK}
 if [ "$TEST_MODE" = true ]; then
     JOB_NAME="TEST-${JOB_NAME}"
     IDUN_TIME=00:15:00
+    BATCH_SIZE=2
+    LEARNING_RATE=0.001
+    NUM_EPOCHS=2
 fi
 
 if [ "$TEST_MODE" = false ]; then
@@ -37,6 +34,8 @@ fi
 OUTPUT_FOLDER=${DATE}-${JOB_NAME}
 
 mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER
+mkdir /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/model_checkpoints
+
 echo "Made directory: /cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER"
 OUTPUT_FILE="/cluster/home/taheeraa/code/forprosjekt/output/$OUTPUT_FOLDER/idun_out.out"
 echo "Current OUTPUT_FOLDER is: $OUTPUT_FOLDER"

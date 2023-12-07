@@ -20,7 +20,7 @@ def set_up(args):
     LOG_DIR = output_folder
 
     create_directory_if_not_exists(LOG_DIR)
-    create_directory_if_not_exists(output_folder+'/models')
+    create_directory_if_not_exists(f'{output_folder}/model_checkpoints')
     
     LOG_FILE = f"{LOG_DIR}/log_file.txt"
 

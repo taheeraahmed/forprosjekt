@@ -39,7 +39,7 @@ class MultiClassDataLoader:
 
         if self.test_mode:
             self.logger.warning('Using a subset of the dataset for testing')
-            subset_size = 40
+            subset_size = 100
             indices = torch.randperm(len(dataset)).tolist()
             test_mode_subset_indices = indices[:subset_size]
             test_mode_subset_dataset = Subset(dataset, test_mode_subset_indices)

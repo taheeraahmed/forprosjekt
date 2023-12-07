@@ -32,6 +32,8 @@ def train(args):
     else: 
         logger.error('Invalid model argument')
         sys.exit(1)
+
+    logger.info('Training is done')
     
 if __name__ == "__main__":
     model_choices = ['densenet','vit']

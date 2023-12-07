@@ -51,7 +51,7 @@ def densenet(logger, args, idun_datetime_done, data_path):
             trainer = TrainerMultiClass(
                 model = model,
                 class_weights=class_weights,
-                model_output_folder = f'{args.output_folder}/model-checkpoints', 
+                model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
                 logger = logger,
                 log_dir = f'runs/{args.output_folder}',
                 optimizer = optimizer, 
@@ -76,7 +76,7 @@ def densenet(logger, args, idun_datetime_done, data_path):
 
             trainer = TrainerMultiClass(
                 model = model,
-                model_output_folder = f'{args.output_folder}/model-checkpoints', 
+                model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
                 logger = logger,
                 log_dir = f'runs/{args.output_folder}',
                 optimizer = optimizer, 
@@ -105,7 +105,7 @@ def densenet(logger, args, idun_datetime_done, data_path):
             model = model, 
             args = args, 
             logger = logger, 
-            model_output_folder = f'{args.outputfolder}/model-checkpoints', 
+            model_output_folder = f'output/{args.output_folder}/model_checkpoints', 
             output_folder = args.output_folder, 
             idun_time_done = idun_datetime_done
         )
