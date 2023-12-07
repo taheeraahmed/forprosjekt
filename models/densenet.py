@@ -32,15 +32,16 @@ def densenet(logger, args, idun_datetime_done, data_path):
         model = xrv.models.get_model(weights="densenet121-res224-nih")
         model.op_threshs = None 
         model.classifier = torch.nn.Linear(1024,14) 
+        # Only training classifier
         optimizer = torch.optim.Adam(model.classifier.parameters())
 
         if args.class_imbalance:
             logger.info('Handling class imbalance')
             train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
             class_weights = get_class_weights(train_df)
-            optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
             if args.test_mode:
+                logger.warning('Using smaller dataset')
                 train_subset_size = 100  # Adjust as needed
                 val_subset_size = 50  # Adjust as needed
 
@@ -69,7 +70,6 @@ def densenet(logger, args, idun_datetime_done, data_path):
                 model_arg = args.model
             )
         else:
-            optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
             dataloaders = MultiClassDataLoader(
                 data_path = data_path, 
                 test_mode = args.test_mode, 

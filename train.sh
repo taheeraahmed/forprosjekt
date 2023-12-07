@@ -3,7 +3,7 @@ TEST_MODE=true
 
 MODEL=vit        #vit, densenet
 TASK=multi-class      #multi-class
-CLASS_IMBALANCE=true 
+CLASS_IMBALANCE=false 
 
 BATCH_SIZE=32
 LEARNING_RATE=0.001

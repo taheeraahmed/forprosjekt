@@ -8,5 +8,5 @@
 |--------|----------|-------------|-----------------|---------------------|
 | 1      | densenet | multi-class | false           |       X             |
 | 2      | densenet | multi-class | true            |       X             |
-| 3      | vit      | multi-class | false           |                     |
-| 4      | vit      | multi-class | true            |     On-going        |
+| 3      | vit      | multi-class | false           |     On-going        |
+| 4      | vit      | multi-class | true            |       X             |

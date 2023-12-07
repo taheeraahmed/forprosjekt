@@ -23,6 +23,7 @@ def vit(logger, args, idun_datetime_done, data_path):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
     shuffle = True  
     num_workers = 4  
@@ -30,10 +31,9 @@ def vit(logger, args, idun_datetime_done, data_path):
     if args.class_imbalance:
         train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
         class_weights = get_class_weights(train_df)
-        criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
         if args.test_mode:
+            logger.warning('Using smaller dataset')
             train_subset_size = 100  # Adjust as needed
             val_subset_size = 50  # Adjust as needed
 
@@ -77,12 +77,11 @@ def vit(logger, args, idun_datetime_done, data_path):
             logger = logger, 
             log_dir=f'runs/{args.output_folder}',
             optimizer=optimizer,
-            criterion=criterion,
         )
         trainer.train(
             train_dataloader = train_dataloader, 
             validation_dataloader = val_dataloader,
             num_epochs = args.num_epochs,
             idun_datetime_done = idun_datetime_done,
-            model_arg = args.model_arg
+            model_arg = args.model
         )
