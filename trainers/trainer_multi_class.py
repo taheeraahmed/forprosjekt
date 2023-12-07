@@ -29,10 +29,12 @@ class TrainerMultiClass:
             self.logger.warning('GPU not available')
 
         if class_weights is not None:
+            assert class_weights.ndim == 1, "class_weights must be a 1D tensor"
+            assert len(class_weights) == len(self.classnames), "The length of class_weights must match the number of classes"
             class_weights = class_weights.to(self.device)
             self.criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
         else:
-            self.criterion = nn.CrossEntropyLoss
+            self.criterion = nn.CrossEntropyLoss()
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.1)
 
         # for checkpointing
@@ -76,11 +78,6 @@ class TrainerMultiClass:
         train_outputs = []
         train_targets = []
 
-        # init per-class metrics storage for training
-        train_class_losses = {classname: 0.0 for classname in self.classnames}
-        train_class_correct = {classname: 0 for classname in self.classnames}
-        train_class_total = {classname: 0 for classname in self.classnames}
-
         train_loop = tqdm(train_dataloader, leave=True)
         for i, batch in enumerate(train_loop):
             inputs, labels = batch["img"].to(self.device), batch["lab"].to(self.device)
@@ -114,15 +111,6 @@ class TrainerMultiClass:
             train_outputs.append(outputs_binary)
             train_targets.append(targets_binary)
 
-            # # Calculate per-class metrics
-            # for cls_idx, cls_name in enumerate(self.classnames):
-            #     cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
-            #     train_class_losses[cls_name] += cls_loss
-
-            #     cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
-            #     train_class_correct[cls_name] += cls_correct_predictions
-            #     train_class_total[cls_name] += targets_binary.shape[0]
-
             # Calculate and accumulate accuracy
             train_correct_predictions += np.sum(outputs_binary == targets_binary)
             train_total_predictions += targets_binary.size
@@ -153,13 +141,6 @@ class TrainerMultiClass:
         except ValueError as e:
             self.logger.warning(f'Unable to calculate train AUC for epoch {epoch+1}: {e}')
             self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, F1: {train_f1}, accuracy: {train_accuracy}')
-
-        # calculate and log per-class metrics for training
-        for cls_name in self.classnames:
-            avg_cls_loss = train_class_losses[cls_name] / len(train_dataloader)
-            cls_accuracy = train_class_correct[cls_name] / train_class_total[cls_name]
-            self.writer.add_scalar(f'Train/Loss/{cls_name}', avg_cls_loss, epoch)
-            self.writer.add_scalar(f'Train/Accuracy/{cls_name}', cls_accuracy, epoch)
             
     def _validate_epoch(self, validation_dataloader, epoch, model_arg):
         self.model.eval()
@@ -170,11 +151,6 @@ class TrainerMultiClass:
         val_total_predictions = 0
         val_outputs = []
         val_targets = []
-
-        # init per-class metrics storage for validation
-        val_class_losses = {classname: 0.0 for classname in self.classnames}
-        val_class_correct = {classname: 0 for classname in self.classnames}
-        val_class_total = {classname: 0 for classname in self.classnames}
 
         with torch.no_grad():
             val_loop = tqdm(validation_dataloader, leave=True)
@@ -195,15 +171,6 @@ class TrainerMultiClass:
 
                 outputs_binary = (torch.sigmoid(logits) > 0.5).cpu().numpy()
                 targets_binary = targets.cpu().numpy()
-
-                # calculate per-class metrics
-                for cls_idx, cls_name in enumerate(self.classnames):
-                    cls_loss = self.criterion(logits[:, cls_idx], targets[:, cls_idx]).item()
-                    val_class_losses[cls_name] += cls_loss
-
-                    cls_correct_predictions = np.sum(outputs_binary[:, cls_idx] == targets_binary[:, cls_idx])
-                    val_class_correct[cls_name] += cls_correct_predictions
-                    val_class_total[cls_name] += targets_binary.shape[0]
 
                 # calculate and accumulate accuracy, auc and F1 score
                 val_correct_predictions += np.sum(outputs_binary == targets_binary)
@@ -238,9 +205,3 @@ class TrainerMultiClass:
         if current_val_f1 > self.best_val_f1:
             self.best_val_f1 = current_val_f1
             self._save_checkpoint(epoch, current_val_f1)
-
-        for cls_name in self.classnames:
-            avg_cls_loss = val_class_losses[cls_name] / len(validation_dataloader)
-            cls_accuracy = val_class_correct[cls_name] / val_class_total[cls_name]
-            self.writer.add_scalar(f'Validation/Loss/{cls_name}', avg_cls_loss, epoch)
-            self.writer.add_scalar(f'Validation/Accuracy/{cls_name}', cls_accuracy, epoch)
