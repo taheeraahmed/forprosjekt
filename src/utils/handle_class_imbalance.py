@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import glob
+import torch
 
 def handle_class_imbalance_df(data_path, logger):
     df = pd.read_csv(f'{data_path}/Data_Entry_2017.csv')
@@ -46,19 +47,19 @@ def handle_class_imbalance_df(data_path, logger):
     return train_df, val_df, test_df 
 
 def get_class_weights(train_df):
-    class_weights = []
+    pos_weights = []
 
     diseases = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Effusion', 'Emphysema',
                 'Fibrosis', 'Hernia', 'Infiltration', 'Mass', 'Nodule', 'Pleural_Thickening',
                 'Pneumonia', 'Pneumothorax']
 
-    for i, disease in enumerate(diseases):
-        # count the number of positive and negative instances for this disease
+    for disease in diseases:
         n_positive = np.sum(train_df[disease])
         n_negative = len(train_df) - n_positive
 
-        # compute the weight for positive instances and the weight for negative instances
         weight_for_positive = (1 / n_positive) * (len(train_df) / 2.0)
-        weight_for_negative = (1 / n_negative) * (len(train_df) / 2.0)
 
-        class_weights.append({0: weight_for_negative, 1: weight_for_positive})
+        pos_weights.append(weight_for_positive)
+
+    pos_weights_tensor = torch.tensor(pos_weights, dtype=torch.float)
+    return pos_weights_tensor
