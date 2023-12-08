@@ -27,7 +27,7 @@ def vit(logger, args, idun_datetime_done, data_path):
     shuffle = True  
     num_workers = 4  
 
-    train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+    train_df, val_df = handle_class_imbalance_df(args, data_path, logger)
     if args.test_mode:
         logger.warning('Using smaller dataset')
         train_subset_size = 100  # Adjust as needed

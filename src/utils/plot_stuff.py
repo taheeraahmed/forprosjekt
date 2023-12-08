@@ -1,5 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+import pandas as pd
+
+# Set style and color palette
+sns.set(style='darkgrid', palette='mako')
+
+# Change the setting and put it in a dictionary
+plot_settings = {
+    'axes.titlesize': 18,
+    'axes.labelsize': 14,
+    'figure.dpi': 140,
+    'axes.titlepad': 15,
+    'axes.labelpad': 15,
+    'figure.titlesize': 24,
+    'figure.titleweight': 'bold',
+}
+
+# Use the dictionary variable to update the settings using matplotlib
+plt.rcParams.update(plot_settings)
 
 def plot_metrics(train_arr, val_arr, output_folder, logger, type='None'):
     plt.figure(figsize=(10, 5))
@@ -45,3 +64,27 @@ def plot_pred(inputs, labels, preds, output_folder, logger):
     plt.savefig(f'{output_folder}/img_chest_pred.png')
     logger.info(f'Saved images to: {output_folder}/img_chest_pred.png')
     logger.info('Done training')
+
+def plot_percentage_train_val_test(train_df, val_df, diseases, image_output='./'):
+    # calculate the percentages of each disease in the train and validation sets
+    train_percentages = train_df[diseases].mean() * 100
+    val_percentages = val_df[diseases].mean() * 100
+
+    # create a DataFrame that contains the calculated percentages
+    data = {
+        'Train': train_percentages,
+        'Validation': val_percentages
+    }
+    percentage_df = pd.DataFrame(data)
+
+    # reset index to make 'Disease' a column
+    percentage_df = percentage_df.reset_index().rename(columns={'index': 'Disease'})
+
+    # melt the DataFrame from wide format to long format for plotting
+    percentage_df = percentage_df.melt(id_vars='Disease', var_name='Set', value_name='Percentage')
+
+    # create a bar plot that compares the percentages of each disease in the train and validation sets
+    plt.figure(figsize=(12, 8))
+    sns.barplot(data=percentage_df, x='Percentage', y='Disease', hue='Set', alpha=1)
+    plt.title('Comparison of Disease Percentages in Train and Validation Sets')
+    plt.savefig(image_output)
