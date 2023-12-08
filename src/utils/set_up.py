@@ -58,10 +58,10 @@ def calculate_idun_time_left(epoch, num_epochs, epoch_duration, idun_datetime_do
     try:
         if idun_datetime_done > estimated_completion_time:
             time_diff = idun_datetime_done - estimated_completion_time
-            logger.info(f"There is enough time allocated for the training to completely finish. Time difference: {time_diff}")
+            logger.info(f"There is enough time allocated: {time_diff}")
         else:
             time_diff = estimated_completion_time - idun_datetime_done
-            logger.warning(f"There might not be enough time allocated on IDUN. Time difference: {time_diff}")
+            logger.warning(f"There might not be enough time allocated on IDUN: {time_diff}")
     except:
         logger.info('Dont have IDUN time')
                         
