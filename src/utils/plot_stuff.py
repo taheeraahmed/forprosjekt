@@ -65,7 +65,7 @@ def plot_pred(inputs, labels, preds, output_folder, logger):
     logger.info(f'Saved images to: {output_folder}/img_chest_pred.png')
     logger.info('Done training')
 
-def plot_percentage_train_val_test(train_df, val_df, diseases, image_output='./'):
+def plot_percentage_train_val(train_df, val_df, diseases, image_output='./'):
     # calculate the percentages of each disease in the train and validation sets
     train_percentages = train_df[diseases].mean() * 100
     val_percentages = val_df[diseases].mean() * 100
@@ -87,4 +87,15 @@ def plot_percentage_train_val_test(train_df, val_df, diseases, image_output='./'
     plt.figure(figsize=(12, 8))
     sns.barplot(data=percentage_df, x='Percentage', y='Disease', hue='Set', alpha=1)
     plt.title('Comparison of Disease Percentages in Train and Validation Sets')
+    plt.savefig(image_output)
+
+def plot_number_patient_disease(df, diseases, image_output):
+    # What are the label counts for each disease?
+    label_counts = df[diseases].sum().sort_values(ascending=False)
+    # Plot the value counts
+    plt.figure(figsize=(12, 8))
+    sns.barplot(x=label_counts.values, y=label_counts.index)
+    plt.xlabel('Number of Patients')
+    plt.ylabel('Disease')
+    plt.title('Number of Patients per Disease')
     plt.savefig(image_output)

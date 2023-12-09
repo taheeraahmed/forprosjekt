@@ -3,9 +3,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import glob
 import torch
-from utils.plot_stuff import plot_percentage_train_val_test
+from utils.plot_stuff import plot_percentage_train_val, plot_number_patient_disease
 
-def handle_class_imbalance_df(args, data_path, logger):
+def get_df_image_paths_labels(args, data_path, logger):
     df = pd.read_csv(f'{data_path}/Data_Entry_2017.csv')
     image_paths = []
     for i in range(1, 13):
@@ -26,6 +26,8 @@ def handle_class_imbalance_df(args, data_path, logger):
         df[disease] = df['Finding Labels'].apply(lambda x: 1 if disease in x else 0)
     df = df.drop('Finding Labels', axis=1)
 
+    plot_number_patient_disease(df, diseases, image_output = f'output/{args.output_folder}/images/number_patient_disease.png')
+
     # used for handling data leak
     patient_ids = df['Patient ID'].unique()
 
@@ -45,7 +47,7 @@ def handle_class_imbalance_df(args, data_path, logger):
     val_df = val_df.drop('Patient ID', axis=1).reset_index(drop=True)
 
     # calculate the percentages of each disease in the train, validation, and test sets
-    plot_percentage_train_val_test(train_df = train_df,
+    plot_percentage_train_val(train_df = train_df,
                                    val_df = val_df,
                                    diseases = diseases,
                                    image_output = f'output/{args.output_folder}/images/percentage_class_train_val_test.png'
