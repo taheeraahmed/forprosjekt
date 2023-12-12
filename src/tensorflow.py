@@ -79,12 +79,17 @@ def train(args):
     hist_df.to_csv(f'{log_dir}/{args.model}-{args.class_imbalance}.csv', index=False)
     logger.info(f"Saved model history to model_history/{args.model}-{args.class_imbalance}.csv")
 
+    save_plot(history, 'auc', 'val_auc', 'AUC', f'{log_dir}/{args.model}-{args.class_imbalance}-auc-plot.png')
+    save_plot(history, 'loss', 'val_loss', 'Loss', f'{log_dir}/{args.model}-{args.class_imbalance}-loss-plot.png')
+    save_plot(history, 'f1_score', 'val_f1_score', 'F1 Score', f'{log_dir}/{args.model}-{args.class_imbalance}-f1-score-plot.png')
+
 if __name__ == "__main__":
     model_choices = ['densenet','swin']
 
     parser = argparse.ArgumentParser(description="Arguments for training with pytorch")
     parser.add_argument("-m", "--model", choices=model_choices, help="Model to run", required=True)
     parser.add_argument("-im", "--class_imbalance", help="Handle class imbalance", required=False, default=False)
+    parser.add_argument("-date", "--date", help="Start time", type=str, required=True)
 
     args = parser.parse_args()
     args.class_imbalance = str_to_bool(args.class_imbalance)

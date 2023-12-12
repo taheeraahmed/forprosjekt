@@ -8,13 +8,13 @@ from datetime import datetime, timedelta
 import time
 
 def set_up_tf(args):
-    start_time = datetime.now()
-    start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
     result = pyfiglet.figlet_format("Forprosjekt B)", font = "slant")  
     print(result) 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    LOG_DIR = f'output/tf/{start_time_str}-model_history'
+    job_name = f'{args.date}-{args.model}-{args.class_imbalance}'
+
+    LOG_DIR = f'/cluster/home/taheeraa/code/forprosjekt/output/tf/{job_name}'
     create_directory_if_not_exists(LOG_DIR)
     
     LOG_FILE = f"{LOG_DIR}/log_file.txt"
