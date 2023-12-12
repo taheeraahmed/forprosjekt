@@ -2,7 +2,6 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 from utils.set_up import str_to_bool
 import argparse
 from keras import layers, models
-from tfswin import SwinTransformerTiny224, preprocess_input
 from keras.layers import GlobalAveragePooling2D, Dense
 from keras.models import Model
 from keras.metrics import AUC
@@ -17,8 +16,6 @@ DATA_PATH = '/cluster/home/taheeraa/datasets/chestxray-14'
 SHUFFLE_BUFFER_SIZE = 1000  # Adjust as needed
 
 def train(args):
-    BATCH_SIZE = args.batch_size
-    EPOCHS = args.epochs
     args.SHUFFLE_BUFFER_SIZE = SHUFFLE_BUFFER_SIZE
 
     logger, log_dir = set_up_tf(args)
@@ -30,24 +27,10 @@ def train(args):
     num_classes = len(train_tf_dataset.labels)
     train_tf_dataset = train_tf_dataset.get_dataset()
     val_tf_dataset = val_tf_dataset.get_dataset()
-    train_tf_dataset = train_tf_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-    val_tf_dataset = val_tf_dataset.batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
+    train_tf_dataset = train_tf_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(args.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    val_tf_dataset = val_tf_dataset.batch(args.batch_size).prefetch(tf.data.experimental.AUTOTUNE)
     
-    if args.model == 'swin':
-        logger.info('Using swin')
-        inputs = layers.Input(shape=(224, 224, 3), dtype='uint8')
-        outputs = layers.Lambda(preprocess_input)(inputs)
-        x = SwinTransformerTiny224(include_top=False)(outputs) 
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(1024, activation='relu')(x)
-        predictions = Dense(num_classes, activation='sigmoid')(x)
-
-        model = Model(inputs=inputs, outputs=predictions) 
-
-        for layer in model.layers[:-3]:
-            layer.trainable = False
-        
-    elif args.model == 'densenet':
+    if args.model == 'densenet':
         logger.info('Using densenet')
         base_model = DenseNet121(weights='imagenet', include_top=False)
 
@@ -60,13 +43,27 @@ def train(args):
 
         for layer in base_model.layers:
             layer.trainable = False
+    """ elif args.model == 'swin':
+        logger.info('Using swin')
+        inputs = layers.Input(shape=(224, 224, 3), dtype='uint8')
+        outputs = layers.Lambda(preprocess_input)(inputs)
+        x = SwinTransformerTiny224(include_top=False)(outputs) 
+        x = GlobalAveragePooling2D()(x)
+        x = Dense(1024, activation='relu')(x)
+        predictions = Dense(num_classes, activation='sigmoid')(x)
+
+        model = Model(inputs=inputs, outputs=predictions) 
+
+        for layer in model.layers[:-3]:
+            layer.trainable = False """
+        
 
     model.compile(optimizer='adam', 
                 loss='binary_crossentropy', 
                 metrics=[AUC(), tfa.metrics.F1Score(num_classes=num_classes, average='macro')])
 
     history = model.fit(train_tf_dataset,
-                        epochs=EPOCHS,
+                        epochs=args.epochs,
                         validation_data=val_tf_dataset)
     
     hist_df = pd.DataFrame(history.history)

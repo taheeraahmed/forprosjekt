@@ -15,6 +15,3 @@ monai
 torch-tb-profiler
 transformers
 seaborn
-tfswin
-tensorflow
-tensorflow-addons

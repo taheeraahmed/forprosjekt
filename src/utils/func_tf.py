@@ -21,9 +21,9 @@ def set_up_tf(args):
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     if args.class_imbalance:
-        job_name = f'{args.date}-{args.model}-imbalance-tf'
+        job_name = f'{args.date}/{args.model}-imbalance-bs{args.batch_size}-e{args.epochs}-tf'
     else:
-        job_name = f'{args.date}-{args.model}-tf'
+        job_name = f'{args.date}/{args.model}-bs{args.batch_size}-e{args.epochs}-tf'
 
     LOG_DIR = f'/cluster/home/taheeraa/code/forprosjekt/output/tf/{job_name}'
     create_directory_if_not_exists(LOG_DIR)
@@ -41,9 +41,9 @@ def set_up_tf(args):
     logger.info(f'Root directory of project: {project_root}')
     logger.info(f'Log directory: {LOG_DIR}')
 
-    logger.info(f'Batch size: {args.BATCH_SIZE}')
+    logger.info(f'Batch size: {args.batch_size}')
     logger.info(f'Shuffle buffer size: {args.SHUFFLE_BUFFER_SIZE}')
-    logger.info(f'Epochs: {args.EPOCHS}')
+    logger.info(f'Epochs: {args.epochs}')
 
 
     check_gpu(logger)
