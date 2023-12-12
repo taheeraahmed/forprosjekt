@@ -15,7 +15,12 @@ CURRENT_PATH=$(pwd)
 for MODEL in "${MODELS[@]}"; do
     for CLASS_IMBALANCE in "${CLASS_IMBALANCES[@]}"; do
 
-        JOB_NAME=${DATE}-${MODEL}-${CLASS_IMBALANCES}
+        # Check if CLASS_IMBALANCE is true and modify JOB_NAME accordingly
+        if [ "$CLASS_IMBALANCE" == "true" ]; then
+            JOB_NAME=${DATE}-${MODEL}-imbalance-tf
+        else
+            JOB_NAME=${DATE}-${MODEL}-tf
+        fi
 
         mkdir -p /cluster/home/$USER/code/forprosjekt/output/tf/$JOB_NAME
 

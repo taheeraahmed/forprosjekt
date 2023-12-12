@@ -15,7 +15,7 @@ module load Python/3.10.8-GCCcore-12.2.0
 pip install -q -r requirements.txt
 
 echo "--- Running python-script ---"
-python $CODE_PATH/src/train.py \
+python $CODE_PATH/src/train-tensorflow.py \
   --model $MODEL \
   --class_imbalance $CLASS_IMBALANCE \
   --date $DATE \
