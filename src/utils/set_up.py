@@ -7,6 +7,39 @@ from utils.check_gpu import check_gpu
 from datetime import datetime, timedelta
 import time
 
+def set_up_tf(args):
+    start_time = datetime.now()
+    start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
+    result = pyfiglet.figlet_format("Forprosjekt B)", font = "slant")  
+    print(result) 
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    LOG_DIR = f'output/tf/{start_time_str}-model_history'
+    create_directory_if_not_exists(LOG_DIR)
+    
+    LOG_FILE = f"{LOG_DIR}/log_file.txt"
+
+    logging.basicConfig(level=logging.INFO, 
+                format='[%(levelname)s] %(asctime)s - %(message)s',
+                handlers=[
+                    logging.FileHandler(LOG_FILE),
+                    logging.StreamHandler()
+                ])
+    logger = logging.getLogger()
+    logger.info(f'Running: {args.model}')
+    logger.info(f'Root directory of project: {project_root}')
+    logger.info(f'Log directory: {LOG_DIR}')
+
+    logger.info(f'Batch size: {args.BATCH_SIZE}')
+    logger.info(f'Shuffle buffer size: {args.SHUFFLE_BUFFER_SIZE}')
+    logger.info(f'Epochs: {args.EPOCHS}')
+
+
+    check_gpu(logger)
+    logger.info('Set-up completed')
+
+    return logger, LOG_DIR
+
 def set_up(args):
     start_time = time.time()
 
