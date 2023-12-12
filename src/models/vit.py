@@ -5,7 +5,7 @@ from torchvision import transforms
 
 from transformers import ViTForImageClassification, ViTFeatureExtractor
 
-from datasets.multi_class import ChestXrayMultiClassDataset
+from datasets.multi_class import ChestXray14MultiClassDataset
 from trainers.trainer_multi_class import TrainerMultiClass
 from utils.handle_class_imbalance import get_df_image_paths_labels, get_class_weights
 
@@ -36,10 +36,10 @@ def vit(logger, args, idun_datetime_done, data_path):
         train_df = train_df.head(train_subset_size)
         val_df = val_df.head(val_subset_size)
 
-    train_dataset = ChestXrayMultiClassDataset(dataframe=train_df, transform=transform)
+    train_dataset = ChestXray14MultiClassDataset(dataframe=train_df, transform=transform)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
 
-    val_dataset = ChestXrayMultiClassDataset(dataframe=val_df, transform=transform)
+    val_dataset = ChestXray14MultiClassDataset(dataframe=val_df, transform=transform)
     validation_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=shuffle, num_workers=num_workers)
     
     if args.class_imbalance:
