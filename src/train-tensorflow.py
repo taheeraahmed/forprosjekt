@@ -14,14 +14,12 @@ import pandas as pd
 from utils.func_tf import get_df, ChestXray14TFDataset, save_plot, set_up_tf
 
 DATA_PATH = '/cluster/home/taheeraa/datasets/chestxray-14'
-BATCH_SIZE = 32  # You can adjust this according to your system's capability
 SHUFFLE_BUFFER_SIZE = 1000  # Adjust as needed
-EPOCHS = 20
 
 def train(args):
-    args.BATCH_SIZE = BATCH_SIZE
+    BATCH_SIZE = args.batch_size
+    EPOCHS = args.epochs
     args.SHUFFLE_BUFFER_SIZE = SHUFFLE_BUFFER_SIZE
-    args.EPOCHS = EPOCHS
 
     logger, log_dir = set_up_tf(args)
     
@@ -88,6 +86,10 @@ if __name__ == "__main__":
     parser.add_argument("-im", "--class_imbalance", help="Handle class imbalance", required=False, default=False)
     parser.add_argument("-date", "--date", help="Start time", type=str, required=True)
 
+    parser.add_argument("-epochs", "--epochs", help="Epochs", type=int, default=25)
+    parser.add_argument("-bs", "--batch_size", help="Batch size", type=int, default=32)
+
+    
     args = parser.parse_args()
     args.class_imbalance = str_to_bool(args.class_imbalance)
     train(args)

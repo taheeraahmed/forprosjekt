@@ -3,8 +3,10 @@ TEST_MODE=true
 
 MODELS=("swin" "densenet")
 CLASS_IMBALANCES=("true" "false")
+BATCH_SIZE=32
+EPOCHS=25
 
-IDUN_TIME=90:00:00
+IDUN_TIME=30:00:00
 
 #    ======= DO NOT EDIT THIS SCRIPT =======
 
@@ -17,9 +19,9 @@ for MODEL in "${MODELS[@]}"; do
 
         # Check if CLASS_IMBALANCE is true and modify JOB_NAME accordingly
         if [ "$CLASS_IMBALANCE" == "true" ]; then
-            JOB_NAME=${DATE}-${MODEL}-imbalance-tf
+            JOB_NAME=${DATE}-${MODEL}-imbalance-bs${BATCH_SIZE}-e${EPOCHS}-tf
         else
-            JOB_NAME=${DATE}-${MODEL}-tf
+            JOB_NAME=${DATE}-${MODEL}-bs${BATCH_SIZE}-e${EPOCHS}-tf
         fi
 
         mkdir -p /cluster/home/$USER/code/forprosjekt/output/tf/$JOB_NAME
@@ -61,7 +63,7 @@ for MODEL in "${MODELS[@]}"; do
             --gres=gpu:1 \
             --job-name=$JOB_NAME \
             --output=$OUTPUT_FILE \
-            --export=CODE_PATH=$CODE_PATH,DATE=$DATE,MODEL=$MODEL,CLASS_IMBALANCE=$CLASS_IMBALANCE \
+            --export=CODE_PATH=$CODE_PATH,DATE=$DATE,MODEL=$MODEL,CLASS_IMBALANCE=$CLASS_IMBALANCE,EPOCHS=$EPOCHS,BATCH_SIZE=$BATCH_SIZE \
             $CODE_PATH/scripts/train-tf.slurm
     done
 done
