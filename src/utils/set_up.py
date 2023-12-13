@@ -1,11 +1,3 @@
-import pyfiglet
-import logging
-import os
-from datetime import datetime
-from utils.create_dir import create_directory_if_not_exists
-from utils.check_gpu import check_gpu
-from datetime import datetime, timedelta
-import time
 
 def set_up(args):
     start_time = time.time()
