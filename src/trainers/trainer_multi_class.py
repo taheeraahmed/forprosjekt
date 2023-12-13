@@ -51,7 +51,6 @@ class TrainerMultiClass:
             
             self._train_epoch(train_dataloader, epoch, model_arg)
             self._validate_epoch(validation_dataloader, epoch, model_arg)
-            self.scheduler.step()
 
             epoch_end_time = time.time()
             epoch_duration = epoch_end_time - epoch_start_time
@@ -117,7 +116,7 @@ class TrainerMultiClass:
             train_outputs.append(outputs_binary)
             train_targets.append(targets_binary)
 
-            # Calculate and accumulate accuracy
+            # calculate and accumulate accuracy
             train_correct_predictions += np.sum(outputs_binary == targets_binary)
             train_total_predictions += targets_binary.size
 
@@ -165,7 +164,15 @@ class TrainerMultiClass:
         except ValueError as e:
             self.logger.warning(f'Unable to calculate train AUC for epoch {epoch+1}: {e}')
             self.logger.info(f'[Train] Epoch {epoch+1} - loss: {avg_train_loss}, F1: {train_f1}, accuracy: {train_accuracy}')
-            
+        
+        # Get the current learning rate from the scheduler
+        current_lr = self.scheduler.get_last_lr()[0]  # Extract the first (and likely only) element
+        # Log the learning rate
+        self.writer.add_scalar('Learning rate', current_lr, epoch)
+        # Step the scheduler
+        self.scheduler.step()
+        
+
     def _validate_epoch(self, validation_dataloader, epoch, model_arg):
         self.model.eval()
         

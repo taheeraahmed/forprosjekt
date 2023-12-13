@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torchvision import models
 import torch
-from src.dataloader import BinaryClassificationDataLoader
+from dataloader import BinaryClassificationDataLoader
 from trainers.trainer_multi_class import TrainerMultiClass
 from trainers.trainer_binary_class import TrainingModuleBinaryClass
 import torch
@@ -10,7 +10,7 @@ from torchvision import transforms
 import torchxrayvision as xrv
 from datasets.multi_class import ChestXray14MultiClassDataset
 from trainers.trainer_multi_class import TrainerMultiClass
-from utils.handle_class_imbalance import handle_class_imbalance_df, get_class_weights
+from utils.handle_class_imbalance import get_df_image_paths_labels, get_class_weights
 
 def densenet(logger, args, idun_datetime_done, data_path):
     # TODO: Handle class imbalance for multiclass only, do i need support for binary tho? Doubts :)
@@ -33,7 +33,7 @@ def densenet(logger, args, idun_datetime_done, data_path):
         # only training classifier
         optimizer = torch.optim.Adam(model.classifier.parameters())
 
-        train_df, val_df, _ = handle_class_imbalance_df(data_path, logger)
+        train_df, val_df = get_df_image_paths_labels(args, data_path, logger)
         if args.test_mode:
                 logger.warning('Using smaller dataset')
                 train_subset_size = 100 
