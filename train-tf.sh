@@ -1,8 +1,8 @@
 #!/bin/bash
 TEST_MODE=true
 
-MODELS=("densenet")
-CLASS_IMBALANCES=("true")
+MODELS=("swin" "densenet")
+CLASS_IMBALANCES=("true" "false")
 BATCH_SIZE=32
 EPOCHS=2
 
@@ -19,9 +19,9 @@ for MODEL in "${MODELS[@]}"; do
 
         # Check if CLASS_IMBALANCE is true and modify JOB_NAME accordingly
         if [ "$CLASS_IMBALANCE" == "true" ]; then
-            JOB_NAME=${DATE}/${MODEL}-imbalance-bs${BATCH_SIZE}-e${EPOCHS}-tf
+            JOB_NAME=${DATE}/${MODEL}-imbalance-xai-bs${BATCH_SIZE}-e${EPOCHS}-tf
         else
-            JOB_NAME=${DATE}/${MODEL}-bs${BATCH_SIZE}-e${EPOCHS}-tf
+            JOB_NAME=${DATE}/${MODEL}-xai-bs${BATCH_SIZE}-e${EPOCHS}-tf
         fi
 
         mkdir -p /cluster/home/$USER/code/forprosjekt/output/tf/$JOB_NAME

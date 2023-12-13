@@ -14,6 +14,8 @@ from utils.create_dir import create_directory_if_not_exists
 from utils.check_gpu import check_gpu
 from datetime import datetime, timedelta
 import time
+import shap
+
 
 def set_up_tf(args):
     result = pyfiglet.figlet_format("Tensorflow", font = "slant")  
@@ -52,6 +54,18 @@ def set_up_tf(args):
     return logger, LOG_DIR
 
 
+
+def explain_model(model, train_tf_dataset, output_file, num_samples=100):
+    # Create a SHAP explainer
+    explainer = shap.DeepExplainer(model, train_tf_dataset.take(num_samples))
+    # Generate SHAP values
+    shap_values = explainer.shap_values(train_tf_dataset.take(num_samples))
+
+    # Visualize the first prediction's explanation
+    shap.image_plot(shap_values, -train_tf_dataset.take(num_samples).get_data()[0])
+
+    plt.savefig(output_file)
+    plt.close()
 
 def save_plot(history, history_metric, val_history_metric, metric_name, file_name):
     plt.figure()
@@ -136,3 +150,19 @@ class ChestXray14TFDataset:
         dataset = dataset.map(self._parse_function)
         # Add dataset.shuffle, dataset.batch, etc. as needed
         return dataset
+    
+    def get_class_weights(self):
+        class_weights = {}
+
+        diseases = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Effusion', 'Emphysema',
+                    'Fibrosis', 'Hernia', 'Infiltration', 'Mass', 'Nodule', 'Pleural_Thickening',
+                    'Pneumonia', 'Pneumothorax']
+
+        for i, disease in enumerate(diseases):
+            n_positive = np.sum(self.dataframe[disease])
+            n_negative = len(self.dataframe) - n_positive
+
+            weight_for_positive = (1 / n_positive) * (len(self.dataframe) / 2.0)
+            class_weights[i] = weight_for_positive
+
+        return class_weights

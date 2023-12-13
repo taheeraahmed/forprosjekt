@@ -5,15 +5,25 @@ from keras import layers, models
 from keras.layers import GlobalAveragePooling2D, Dense
 from keras.models import Model
 from keras.metrics import AUC
+from keras.callbacks import EarlyStopping
+from keras import layers, models
+from tfswin import SwinTransformerTiny224, preprocess_input
+from keras.layers import GlobalAveragePooling2D, Dense
+from keras.models import Model
+from keras.metrics import AUC
+import tensorflow_addons as tfa
+
 import tensorflow as tf
 import tensorflow_addons as tfa
 from tensorflow.keras.applications import DenseNet121
 import pandas as pd
 
-from utils.func_tf import get_df, ChestXray14TFDataset, save_plot, set_up_tf
+from utils.func_tf import explain_model, get_df, ChestXray14TFDataset, save_plot, set_up_tf
 
 DATA_PATH = '/cluster/home/taheeraa/datasets/chestxray-14'
 SHUFFLE_BUFFER_SIZE = 1000  # Adjust as needed
+
+
 
 def train(args):
     args.SHUFFLE_BUFFER_SIZE = SHUFFLE_BUFFER_SIZE
@@ -43,7 +53,8 @@ def train(args):
 
         for layer in base_model.layers:
             layer.trainable = False
-    """ elif args.model == 'swin':
+
+    elif args.model == 'swin':
         logger.info('Using swin')
         inputs = layers.Input(shape=(224, 224, 3), dtype='uint8')
         outputs = layers.Lambda(preprocess_input)(inputs)
@@ -55,16 +66,32 @@ def train(args):
         model = Model(inputs=inputs, outputs=predictions) 
 
         for layer in model.layers[:-3]:
-            layer.trainable = False """
-        
+            layer.trainable = False
+    
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitor validation loss
+        patience=5,         # Number of epochs with no improvement after which training will be stopped
+        verbose=1,
+        restore_best_weights=True  # Restores model weights from the epoch with the best value of the monitored quantity.
+    )
 
     model.compile(optimizer='adam', 
                 loss='binary_crossentropy', 
                 metrics=[AUC(), tfa.metrics.F1Score(num_classes=num_classes, average='macro')])
-
-    history = model.fit(train_tf_dataset,
-                        epochs=args.epochs,
-                        validation_data=val_tf_dataset)
+    
+    if args.class_imbalance:
+        history = model.fit(train_tf_dataset,
+                            epochs=args.epochs,
+                            validation_data=val_tf_dataset,
+                            callbacks=[early_stopping],
+                            class_weight=train_tf_dataset.get_class_weights()
+                            )
+    else: 
+        history = model.fit(train_tf_dataset,
+                            epochs=args.epochs,
+                            validation_data=val_tf_dataset,
+                            callbacks=[early_stopping]
+                            )
     
     hist_df = pd.DataFrame(history.history)
 
@@ -75,6 +102,8 @@ def train(args):
     save_plot(history, 'loss', 'val_loss', 'Loss', f'{log_dir}/{args.model}-{args.class_imbalance}-loss-plot.png')
     save_plot(history, 'f1_score', 'val_f1_score', 'F1 Score', f'{log_dir}/{args.model}-{args.class_imbalance}-f1-score-plot.png')
 
+    explain_model(model, train_tf_dataset, output_file=f'{log_dir}/{args.model}-{args.class_imbalance}-explanation.png')
+    logger.info(f"Saved model explanation to model_history/{args.model}-{args.class_imbalance}-explanation.png")
 if __name__ == "__main__":
     model_choices = ['densenet','swin']
 

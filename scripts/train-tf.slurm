@@ -19,14 +19,15 @@ fi
 echo "--- nvidia-smi ---"
 nvidia-smi
 
-module load TensorFlow/2.11.0-foss-2022a-CUDA-11.7.0 # for TensorFlow
-
+module load TensorFlow/2.13.0-foss-2023a
 # Create and activate a virtual environment
 VENV_PATH=/cluster/home/taheeraa/venvs/forprosjekt-tf
+
 python -m venv $VENV_PATH
 source $VENV_PATH/bin/activate
 
-/cluster/home/taheeraa/venvs/forprosjekt-tf/bin/python -m pip install --upgrade pip
+pip install shap
+pip install tf-explain
 pip install -q -r requirements-tf.txt
 
 # Save the list of installed packages
